@@ -1,0 +1,97 @@
+/* login.css */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap');
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Inter', sans-serif;
+}
+
+body {
+    height: 100vh;
+    background-color: #f2f2f2;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.login-container {
+    width: 100%;
+    max-width: 420px;
+    padding: 20px;
+}
+
+.login-box {
+    background-color: #ffffff;
+    border-radius: 12px;
+    padding: 40px 30px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+    text-align: center;
+    color: #333333;
+    border: 1px solid #e0e0e0;
+}
+
+.logo {
+    width: 70px;
+    margin-bottom: 20px;
+}
+
+h2 {
+    margin-bottom: 25px;
+    font-weight: 600;
+    color: #222222;
+}
+
+.input-group {
+    margin-bottom: 20px;
+    text-align: left;
+}
+
+.input-group label {
+    display: block;
+    margin-bottom: 6px;
+    font-weight: 500;
+    color: #444444;
+}
+
+.input-group input {
+    width: 100%;
+    padding: 12px 14px;
+    background-color: #fafafa;
+    border: 1px solid #cccccc;
+    border-radius: 6px;
+    color: #333333;
+    font-size: 14px;
+    transition: border-color 0.2s ease-in-out;
+}
+
+.input-group input:focus {
+    outline: none;
+    border-color: #6666ff;
+    background-color: #fff;
+}
+
+.btn-login {
+    width: 100%;
+    background-color: #222222;
+    color: #ffffff;
+    padding: 12px;
+    border: none;
+    border-radius: 6px;
+    font-weight: bold;
+    font-size: 15px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+.btn-login:hover {
+    background-color: #444444;
+}
+
+.error-message {
+    color: #d32f2f;
+    margin-top: 15px;
+    font-size: 14px;
+}

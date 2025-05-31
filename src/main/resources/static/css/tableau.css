@@ -1,0 +1,19 @@
+/* Tableau */
+table {
+    border-collapse: collapse;
+    width: 100%;
+    margin-bottom: 1rem;
+    background-color: #fff;
+}
+
+table th,
+table td {
+    padding: 0.75rem;
+    text-align: left;
+    border: 1px solid #dee2e6;
+}
+
+table thead {
+    background-color: #f1f1f1;
+    font-weight: bold;
+}

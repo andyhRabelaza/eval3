@@ -1,0 +1,28 @@
+<div th:fragment="content">
+    <div class="card">
+        <div class="card-body">
+            <h2 class="card-title">Importer des fichiers</h2>
+            <form th:action="@{/import}" method="post" enctype="multipart/form-data">
+                <div class="input-group">
+                    <label for="file1">Fichier 1</label>
+                    <input type="file" id="file1" name="file1" required />
+                </div>
+
+                <div class="input-group">
+                    <label for="file2">Fichier 2</label>
+                    <input type="file" id="file2" name="file2" required />
+                </div>
+
+                <div class="input-group">
+                    <label for="file3">Fichier 3</label>
+                    <input type="file" id="file3" name="file3" required />
+                </div>
+
+                <button type="submit" class="btn-import">Importer</button>
+            </form>
+
+            <p th:if="${message}" th:text="${message}" style="color: green; margin-top: 15px;"></p>
+            <p th:if="${error}" th:text="${error}" style="color: red; margin-top: 15px;"></p>
+        </div>
+    </div>
+</div>

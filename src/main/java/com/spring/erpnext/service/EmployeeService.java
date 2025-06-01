@@ -1,0 +1,67 @@
+package com.spring.erpnext.service;
+
+import com.spring.erpnext.model.Employee;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.http.*;
+import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestTemplate;
+
+import jakarta.servlet.http.HttpSession;
+import java.util.List;
+
+@Service
+public class EmployeeService {
+
+    private final RestTemplate restTemplate;
+    private final ObjectMapper objectMapper;
+
+    public EmployeeService() {
+        this.restTemplate = new RestTemplate();
+        this.objectMapper = new ObjectMapper();
+    }
+
+    public List<Employee> getAllEmployees(HttpSession session) {
+        String sid = (String) session.getAttribute("sid");
+
+        if (sid == null || sid.isEmpty()) {
+            throw new IllegalStateException("Aucune session 'sid' trouvée.");
+        }
+
+        String url = "http://erpnext.localhost:8000/api/resource/Employee" +
+                "?fields=[\"name\",\"last_name\",\"middle_name\",\"first_name\",\"date_of_birth\",\"date_of_joining\",\"gender\",\"company\"]"
+                +
+                "&limit_page_length=1000";
+
+        // Prépare les headers avec le cookie 'sid'
+        HttpHeaders headers = new HttpHeaders();
+        headers.set("Cookie", "sid=" + sid);
+        HttpEntity<String> entity = new HttpEntity<>(headers);
+
+        ResponseEntity<EmployeeApiResponse> response = restTemplate.exchange(
+                url,
+                HttpMethod.GET,
+                entity,
+                EmployeeApiResponse.class);
+
+        if (response.getStatusCode() == HttpStatus.OK && response.getBody() != null) {
+            return response.getBody().getData();
+        } else {
+            throw new RuntimeException("Erreur lors de la récupération des employés.");
+        }
+    }
+
+    // Classe interne pour mapper la réponse JSON
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class EmployeeApiResponse {
+        private List<Employee> data;
+
+        public List<Employee> getData() {
+            return data;
+        }
+
+        public void setData(List<Employee> data) {
+            this.data = data;
+        }
+    }
+}

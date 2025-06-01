@@ -21,7 +21,7 @@
                 <button type="submit" class="btn-import">Importer</button>
             </form>
 
-            <p th:if="${message}" th:text="${message}" style="color: green; margin-top: 15px;"></p>
+            <p id="success-message" th:if="${message}" th:text="${message}" style="color: green; margin-top: 15px; margin-left: 485px;"></p>
             <p th:if="${error}" th:text="${error}" style="color: red; margin-top: 15px;"></p>
         </div>
     </div>

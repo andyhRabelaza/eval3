@@ -28,10 +28,8 @@ public class EmployeeController {
             @org.springframework.web.bind.annotation.RequestParam(required = false) String search,
             Model model) {
 
-        // Récupération de tous les employés
         List<Employee> employees = employeeService.getAllEmployees(session);
 
-        // Filtrage par recherche (sur nom, prénom ou deuxième prénom)
         if (search != null && !search.isEmpty()) {
             String lowerSearch = search.toLowerCase();
             employees = employees.stream()

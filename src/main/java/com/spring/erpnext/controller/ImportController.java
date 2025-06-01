@@ -1,5 +1,6 @@
 package com.spring.erpnext.controller;
 
+import com.spring.erpnext.service.ImportService;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
@@ -8,10 +9,16 @@ import org.springframework.web.multipart.MultipartFile;
 @Controller
 public class ImportController {
 
+    private final ImportService importService;
+
+    public ImportController(ImportService importService) {
+        this.importService = importService;
+    }
+
     @GetMapping("/import")
     public String importPage(Model model) {
-        model.addAttribute("page", "import"); // indique quel fragment charger dans layout.html
-        return "layout/base"; // on retourne la page principale (layout)
+        model.addAttribute("page", "import");
+        return "layout/base";
     }
 
     @PostMapping("/import")
@@ -23,19 +30,25 @@ public class ImportController {
         try {
             if (!file1.isEmpty()) {
                 System.out.println("Fichier 1: " + file1.getOriginalFilename());
+                importService.readFileLines(file1);
+                importService.processFile1(file1);
             }
             if (!file2.isEmpty()) {
                 System.out.println("Fichier 2: " + file2.getOriginalFilename());
+                importService.readFileLines(file2);
+                importService.processFile2(file2);
             }
             if (!file3.isEmpty()) {
                 System.out.println("Fichier 3: " + file3.getOriginalFilename());
+                importService.readFileLines(file3);
             }
 
             model.addAttribute("message", "Importation réussie !");
+            model.addAttribute("page", "import");
         } catch (Exception e) {
             model.addAttribute("error", "Erreur lors de l'importation : " + e.getMessage());
         }
 
-        return "import";
+        return "layout/base";
     }
 }

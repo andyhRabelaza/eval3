@@ -39,9 +39,5 @@ public class LoginController {
         }
     }
 
-    @GetMapping("/dashboard")
-    public String dashboard(HttpSession session, Model model) {
-        model.addAttribute("username", session.getAttribute("username"));
-        return "dashboard";
-    }
+    
 }

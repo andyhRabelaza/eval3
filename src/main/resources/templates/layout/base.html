@@ -9,6 +9,7 @@
     <link rel="stylesheet" th:href="@{/css/pagination.css}">
     <link rel="stylesheet" th:href="@{/css/tableau.css}">
     <link rel="stylesheet" th:href="@{/css/bouton.css}" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
 
 </head>
 <body>
@@ -25,17 +26,14 @@
             <li class="nav-item">
                 <a class="nav-link" th:href="@{/index}">Accueil</a>
             </li>
-            <!-- <li class="nav-item">
-                <a class="nav-link" th:href="@{/page2}">Page 2</a>
-            </li> -->
-            <!-- <li class="nav-item">
-                <a class="nav-link" th:href="@{/page3}">Page 3</a>
-            </li> -->
+            <li class="nav-item">
+                <a class="nav-link" th:href="@{/import}">Import</a>
+            </li>
             <li class="nav-item">
                 <a class="nav-link" th:href="@{/employees}">Liste employe</a>
             </li>
             <li class="nav-item">
-                <a class="nav-link" th:href="@{/import}">Import</a>
+                <a class="nav-link" th:href="@{/salary}">Salaire employe</a>
             </li>
         </ul>
     </div>
@@ -45,6 +43,7 @@
     </main>
 </div>
 
+<script th:src="@{/JS/salary_name.js}"></script>
 
 </body>
 </html>

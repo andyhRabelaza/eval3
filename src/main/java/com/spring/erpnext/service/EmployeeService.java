@@ -64,4 +64,51 @@ public class EmployeeService {
             this.data = data;
         }
     }
+
+    public int getEmployeeCount(HttpSession session) {
+        String sid = (String) session.getAttribute("sid");
+
+        if (sid == null || sid.isEmpty()) {
+            throw new IllegalStateException("Aucune session 'sid' trouvée.");
+        }
+
+        String url = "http://erpnext.localhost:8000/api/method/frappe.client.get_count";
+
+        // Prépare le corps JSON
+        String body = "{\"doctype\": \"Employee\"}";
+
+        // Prépare les headers avec le cookie 'sid'
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.set("Cookie", "sid=" + sid);
+
+        HttpEntity<String> entity = new HttpEntity<>(body, headers);
+
+        ResponseEntity<EmployeeCountResponse> response = restTemplate.exchange(
+                url,
+                HttpMethod.POST,
+                entity,
+                EmployeeCountResponse.class);
+
+        if (response.getStatusCode() == HttpStatus.OK && response.getBody() != null) {
+            return response.getBody().getMessage();
+        } else {
+            throw new RuntimeException("Erreur lors de la récupération du nombre d'employés.");
+        }
+    }
+
+    // Classe interne pour mapper la réponse JSON du compteur
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class EmployeeCountResponse {
+        private int message;
+
+        public int getMessage() {
+            return message;
+        }
+
+        public void setMessage(int message) {
+            this.message = message;
+        }
+    }
+
 }

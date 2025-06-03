@@ -30,6 +30,11 @@ public class EmployeeController {
 
         List<Employee> employees = employeeService.getAllEmployees(session);
 
+        if (employees == null) {
+            return "redirect:/login";
+        }
+
+        // Recherche
         if (search != null && !search.isEmpty()) {
             String lowerSearch = search.toLowerCase();
             employees = employees.stream()
@@ -40,10 +45,11 @@ public class EmployeeController {
         }
 
         // Pagination
-        int pageSize = 5;
+        int pageSize = 10;
         int totalPages = (int) Math.ceil((double) employees.size() / pageSize);
         int fromIndex = (page - 1) * pageSize;
         int toIndex = Math.min(fromIndex + pageSize, employees.size());
+
         List<Employee> paginated = employees.subList(fromIndex, toIndex);
 
         model.addAttribute("employees", paginated);

@@ -29,8 +29,14 @@ main {
 .nav-link {
     color: #333;
     text-decoration: none;
+    transition: color 0.3s ease;
 }
 
 .nav-link:hover {
-    color: #adb1b7;
+    color: #00ffbf;
+}
+
+.nav-link.active {
+    color: #00ffbf;
+    font-weight: 600;
 }

@@ -1,49 +1,75 @@
 <div th:fragment="content">
-    <h2 class="mt-4">Salaire des employés</h2>
+    <div class="card">
+        <div class="card-body">
+            <h2 class="card-title">Salaire des employés</h2>
 
-    <table class="table table-striped">
-    <thead>
-        <tr>
-            <th>Name</th>
-            <th>Employee</th>
-            <th>Employee Name</th>
-            <!-- <th>Start Date</th> -->
-            <!-- <th>End Date</th> -->
-            <th>Gross Pay</th>
-            <th>Net Pay</th>
-            <!-- <th>Payment Days</th> -->
-            <!-- <th>Leave Without Pay</th> -->
-            <th>Salary Structure</th>
-            <!-- <th>Posting Date</th> -->
-            <th>Company</th>
-            <!-- <th>Status</th> -->
-            <th>Currency</th>
-            <th>Action</th>
-        </tr>
-    </thead>
-    <tbody>
-        <tr th:each="salary : ${salarySlips}">
-            <td th:text="${salary.name}">Name</td>
-            <td th:text="${salary.employee}">Employee</td>
-            <td th:text="${salary.employee_name}">Employee Name</td>
-            <!-- <td th:text="${salary.start_date}">Start Date</td> -->
-            <!-- <td th:text="${salary.end_date}">End Date</td> -->
-            <td th:text="${salary.gross_pay}">Gross Pay</td>
-            <td th:text="${salary.net_pay}">Net Pay</td>
-            <!-- <td th:text="${salary.payment_days}">Payment Days</td> -->
-            <!-- <td th:text="${salary.leave_without_pay}">Leave Without Pay</td> -->
-            <td th:text="${salary.salary_structure}">Salary Structure</td>
-            <!-- <td th:text="${salary.posting_date}">Posting Date</td> -->
-            <td th:text="${salary.company}">Company</td>
-            <!-- <td th:text="${salary.status}">Status</td> -->
-            <td th:text="${salary.currency}">Currency</td>
-            <td>
-                <a th:href="@{/salary/export/pdf(name=${salary.name})}" title="Exporter en PDF" class="text-decoration-none text-danger" target="_blank">
-                    <i class="bi bi-file-earmark-pdf-fill"></i> EXP-PDF
-                </a>
-            </td>
-        </tr>
-    </tbody>
-</table>
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Réf</th>
+                        <th>Employé</th>
+                        <th>Prénom</th>
+                        <!-- <th>Date de début</th> -->
+                        <!-- <th>Date de fin</th> -->
+                        <th>Salaire Brut</th>
+                        <th>Salaire Net</th>
+                        <!-- <th>Jours payés</th> -->
+                        <!-- <th>Congé sans solde</th> -->
+                        <th>Structure de salaire</th>
+                        <!-- <th>Date de publication</th> -->
+                        <th>Entreprise</th>
+                        <!-- <th>Statut</th> -->
+                        <th>Devise</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr th:each="salary : ${salarySlips}">
+                        <td th:text="${salary.name}">Name</td>
+                        <td th:text="${salary.employee}">Employee</td>
+                        <td th:text="${salary.employee_name}">Employee Name</td>
+                        <!-- <td th:text="${salary.start_date}">Start Date</td> -->
+                        <!-- <td th:text="${salary.end_date}">End Date</td> -->
+                        <td th:text="${salary.gross_pay}">Gross Pay</td>
+                        <td th:text="${salary.net_pay}">Net Pay</td>
+                        <!-- <td th:text="${salary.payment_days}">Payment Days</td> -->
+                        <!-- <td th:text="${salary.leave_without_pay}">Leave Without Pay</td> -->
+                        <td th:text="${salary.salary_structure}">Salary Structure</td>
+                        <!-- <td th:text="${salary.posting_date}">Posting Date</td> -->
+                        <td th:text="${salary.company}">Company</td>
+                        <!-- <td th:text="${salary.status}">Status</td> -->
+                        <td th:text="${salary.currency}">Currency</td>
+                        <td>
+                            <a th:href="@{/salary/export/pdf(name=${salary.name})}" title="Exporter en PDF" class="text-decoration-none text-danger" target="_blank">
+                                <i class="bi bi-file-earmark-pdf-fill"></i> EXP-PDF
+                            </a>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <!-- Pagination -->
+<nav th:if="${totalPages > 1}">
+    <ul class="pagination justify-content-center mt-3">
+        <!-- Précédent -->
+        <li class="page-item" th:classappend="${currentPage == 1} ? 'disabled'">
+            <a class="page-link" th:href="@{/salary(page=${currentPage - 1})}">Précédent</a>
+        </li>
+
+        <!-- Pages -->
+        <li class="page-item" th:each="i : ${#numbers.sequence(1, totalPages)}"
+            th:classappend="${i == currentPage} ? 'active'">
+            <a class="page-link" th:href="@{/salary(page=${i})}" th:text="${i}">1</a>
+        </li>
+
+        <!-- Suivant -->
+        <li class="page-item" th:classappend="${currentPage == totalPages} ? 'disabled'">
+            <a class="page-link" th:href="@{/salary(page=${currentPage + 1})}">Suivant</a>
+        </li>
+    </ul>
+</nav>
+
+</div>
 
 </div>

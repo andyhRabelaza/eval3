@@ -5,8 +5,14 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.web.util.UriComponentsBuilder;
+import org.springframework.web.util.UriUtils;
 
 import jakarta.servlet.http.HttpSession;
+
+import java.net.URI;
+import java.nio.charset.StandardCharsets;
+import java.time.YearMonth;
 import java.util.List;
 
 @Service
@@ -45,6 +51,59 @@ public class SalaryService {
             return response.getBody().getData();
         } else {
             throw new RuntimeException("Erreur lors de la récupération des bulletins de salaire.");
+        }
+    }
+
+    public List<SalarySlip> getSalariesByMonth(HttpSession session, int year, int month) {
+        String sid = (String) session.getAttribute("sid");
+        if (sid == null || sid.isEmpty()) {
+            throw new IllegalStateException("Aucune session 'sid' trouvée.");
+        }
+
+        String startDate = String.format("%04d-%02d-01", year, month);
+        String endDate = String.format("%04d-%02d-%02d", year, month, YearMonth.of(year, month).lengthOfMonth());
+
+        String filtersJson = "[[\"Salary Slip\",\"start_date\",\"<=\",\"" + endDate + "\"]," +
+                "[\"Salary Slip\",\"end_date\",\">=\",\"" + startDate + "\"]]";
+
+        System.out.println("SID récupéré depuis la session: " + sid);
+        System.out.println("Date de début : " + startDate);
+        System.out.println("Date de fin : " + endDate);
+        System.out.println("Filtres JSON : " + filtersJson);
+
+        // Construction correcte de l’URL
+        URI uri = UriComponentsBuilder
+                .fromHttpUrl("http://erpnext.localhost:8000/api/resource/Salary Slip")
+                .queryParam("fields",
+                        "[\"name\",\"employee\",\"employee_name\",\"start_date\",\"end_date\",\"gross_pay\",\"net_pay\",\"payment_days\",\"leave_without_pay\",\"salary_structure\",\"posting_date\",\"company\",\"status\",\"currency\"]")
+                .queryParam("filters", filtersJson)
+                .queryParam("limit_page_length", "1000")
+                .build()
+                .encode() // encode tous les paramètres correctement, y compris les espaces
+                .toUri();
+
+        System.out.println("URL finale : " + uri);
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.set("Cookie", "sid=" + sid);
+
+        HttpEntity<String> entity = new HttpEntity<>(headers);
+
+        try {
+            ResponseEntity<SalaryApiResponse> response = restTemplate.exchange(
+                    uri,
+                    HttpMethod.GET,
+                    entity,
+                    SalaryApiResponse.class);
+
+            if (response.getStatusCode() == HttpStatus.OK && response.getBody() != null) {
+                return response.getBody().getData();
+            } else {
+                throw new RuntimeException("Erreur lors de la récupération des bulletins de salaire.");
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            throw new RuntimeException("Erreur lors de l'appel à l'API Frappe ERPNext.");
         }
     }
 

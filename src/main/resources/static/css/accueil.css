@@ -1,0 +1,56 @@
+/* Container principal du module RH */
+.hr-card {
+    max-width: 100%;
+    padding: 30px 40px;
+    border-radius: 12px;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
+    background-color: #ffffff;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    color: #333333;
+    transition: box-shadow 0.3s ease;
+}
+
+.hr-card:hover {
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.18);
+}
+
+/* Corps de la carte */
+.hr-card-body {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+}
+
+/* Titre principal */
+.hr-card-title {
+    font-size: 1.9rem;
+    font-weight: 700;
+    color: #00ffbf; /* Bleu primaire Bootstrap */
+    border-bottom: 2px solid #00ffbf;
+    padding-bottom: 10px;
+    margin-bottom: 20px;
+}
+
+/* Paragraphes */
+.hr-card-text {
+    font-size: 1.1rem;
+    line-height: 1.6;
+    color: #4a4a4a;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .hr-card {
+        padding: 25px 20px;
+        margin: 20px 15px;
+    }
+
+    .hr-card-title {
+        font-size: 1.6rem;
+    }
+
+    .hr-card-text {
+        font-size: 1rem;
+    }
+}
+

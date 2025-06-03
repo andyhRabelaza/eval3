@@ -70,3 +70,30 @@ input[type="file"]:focus {
 #success-message {
     transition: opacity 0.5s ease;
 }
+
+.logout-btn {
+  text-decoration: none;
+  color: #ffffff; /* texte blanc par défaut */
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: color 0.3s ease;
+}
+
+.logout-btn:hover,
+.logout-btn:focus {
+  color: #00ffbf;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.logout-icon {
+  font-size: 1rem;
+  transition: color 0.3s ease;
+}
+
+/* Pour que l'icône et le texte changent ensemble */
+.logout-btn:hover .logout-icon,
+.logout-btn:focus .logout-icon {
+  color: #00ffbf;
+}

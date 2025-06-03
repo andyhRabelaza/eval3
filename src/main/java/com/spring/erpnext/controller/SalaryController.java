@@ -9,6 +9,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 
 import java.io.IOException;
 import java.util.List;
@@ -39,10 +40,78 @@ public class SalaryController {
     }
 
     @GetMapping("/salary")
-    public String home(Model model, HttpSession session) {
+    public String home(
+            Model model,
+            HttpSession session,
+            @RequestParam(defaultValue = "1") int page) {
+        String sid = (String) session.getAttribute("sid");
+        if (sid == null || sid.isEmpty()) {
+            return "redirect:/login";
+        }
+
         List<SalarySlip> salarySlips = salaryService.getAllSalaries(session);
-        model.addAttribute("salarySlips", salarySlips);
+
+        // Pagination
+        int pageSize = 10;
+        int totalPages = (int) Math.ceil((double) salarySlips.size() / pageSize);
+        int fromIndex = (page - 1) * pageSize;
+        int toIndex = Math.min(fromIndex + pageSize, salarySlips.size());
+
+        List<SalarySlip> paginatedSalaries = salarySlips.subList(fromIndex, toIndex);
+
+        model.addAttribute("salarySlips", paginatedSalaries);
+        model.addAttribute("currentPage", page);
+        model.addAttribute("totalPages", totalPages);
         model.addAttribute("page", "salary");
+
+        return "layout/base";
+    }
+
+    @GetMapping("/salaremp")
+    public String filtreEmployeEtSalaire(
+            @RequestParam(value = "monthYear", required = false) String monthYear,
+            Model model,
+            HttpSession session) {
+
+        String sid = (String) session.getAttribute("sid");
+        if (sid == null || sid.isEmpty()) {
+            return "redirect:/login";
+        }
+
+        List<SalarySlip> salarySlips;
+
+        Integer year = null;
+        Integer month = null;
+        if (monthYear != null && !monthYear.isEmpty()) {
+            String[] parts = monthYear.split("-");
+            if (parts.length == 2) {
+                year = Integer.parseInt(parts[0]);
+                month = Integer.parseInt(parts[1]);
+            }
+        }
+
+        if (year != null && month != null) {
+            salarySlips = salaryService.getSalariesByMonth(session, year, month);
+            model.addAttribute("selectedMonth", monthYear);
+        } else {
+            salarySlips = salaryService.getAllSalaries(session);
+        }
+
+        double totalGrossPay = salarySlips.stream()
+                .filter(slip -> slip.getGross_pay() != null)
+                .mapToDouble(SalarySlip::getGross_pay)
+                .sum();
+
+        double totalNetPay = salarySlips.stream()
+                .filter(slip -> slip.getNet_pay() != null)
+                .mapToDouble(SalarySlip::getNet_pay)
+                .sum();
+
+        model.addAttribute("salarySlips", salarySlips);
+        model.addAttribute("totalGrossPay", totalGrossPay);
+        model.addAttribute("totalNetPay", totalNetPay);
+        model.addAttribute("page", "salaremp");
+
         return "layout/base";
     }
 

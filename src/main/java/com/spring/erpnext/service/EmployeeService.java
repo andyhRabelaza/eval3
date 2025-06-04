@@ -5,6 +5,7 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
 
 import jakarta.servlet.http.HttpSession;
@@ -108,6 +109,36 @@ public class EmployeeService {
 
         public void setMessage(int message) {
             this.message = message;
+        }
+    }
+
+    public boolean deleteEmployee(String employeeId, HttpSession session) {
+        String sid = (String) session.getAttribute("sid");
+
+        if (sid == null || sid.isEmpty()) {
+            throw new IllegalStateException("Aucune session 'sid' trouvée.");
+        }
+
+        String url = "http://erpnext.localhost:8000/api/resource/Employee/" + employeeId;
+
+        // Prépare les headers avec le cookie 'sid'
+        HttpHeaders headers = new HttpHeaders();
+        headers.set("Cookie", "sid=" + sid);
+
+        HttpEntity<String> entity = new HttpEntity<>(headers);
+
+        try {
+            ResponseEntity<String> response = restTemplate.exchange(
+                    url,
+                    HttpMethod.DELETE,
+                    entity,
+                    String.class);
+
+            return response.getStatusCode() == HttpStatus.NO_CONTENT || response.getStatusCode() == HttpStatus.OK;
+        } catch (HttpClientErrorException e) {
+            System.err.println(
+                    "Erreur lors de la suppression : " + e.getStatusCode() + " - " + e.getResponseBodyAsString());
+            return false;
         }
     }
 

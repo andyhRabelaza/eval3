@@ -11,6 +11,7 @@
             <table class="table table-striped">
                 <thead>
                     <tr>
+                        <th>Ref</th>
                         <th>Nom</th>
                         <th>Prénom</th>
                         <th>Deuxième Prénom</th>
@@ -18,10 +19,12 @@
                         <th>Date d'embauche</th>
                         <th>Genre</th>
                         <th>Entreprise</th>
+                        <th>Action</th>
                     </tr>
                 </thead>
                 <tbody>
                     <tr th:each="employee : ${employees}">
+                        <td th:text="${employee.name}">Re</td>
                         <td th:text="${employee.last_name}">Nom</td>
                         <td th:text="${employee.first_name}">Prénom</td>
                         <td th:text="${employee.middle_name}">Deuxième prénom</td>
@@ -29,6 +32,14 @@
                         <td th:text="${employee.date_of_joining}">Date Embauche</td>
                         <td th:text="${employee.gender}">Genre</td>
                         <td th:text="${employee.company}">Entreprise</td>
+                        <td>
+                           <a th:href="@{/employees/delete/{name}(name=${employee.name})}" 
+                            class="btn btn-danger btn-sm" 
+                            title="Supprimer"
+                            onclick="return confirm('Êtes-vous sûr de vouloir supprimer cet employé ?');">
+                                <i class="bi bi-trash"></i>
+                            </a>
+                        </td>
                     </tr>
                 </tbody>
             </table>

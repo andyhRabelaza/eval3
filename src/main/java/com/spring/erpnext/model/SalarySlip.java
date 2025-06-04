@@ -1,6 +1,7 @@
 package com.spring.erpnext.model;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import java.util.List;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class SalarySlip {
@@ -19,6 +20,10 @@ public class SalarySlip {
     private String company;
     private String status;
     private String currency;
+    private List<Earning> earnings;
+    private List<Deduction> deductions;
+
+    private Double total_deduction;
 
     // --- Getters & Setters ---
 
@@ -133,4 +138,47 @@ public class SalarySlip {
     public void setCurrency(String currency) {
         this.currency = currency;
     }
+
+    public List<Earning> getEarnings() {
+        return earnings;
+    }
+
+    public void setEarnings(List<Earning> earnings) {
+        this.earnings = earnings;
+    }
+
+    public List<Deduction> getDeductions() {
+        return deductions;
+    }
+
+    public void setDeductions(List<Deduction> deductions) {
+        this.deductions = deductions;
+    }
+
+    public double getDeductionTotal() {
+        if (deductions == null)
+            return 0.0;
+        return deductions.stream()
+                .filter(d -> d.getAmount() != null)
+                .mapToDouble(Deduction::getAmount)
+                .sum();
+    }
+
+    public double getEarningTotal() {
+        if (earnings == null)
+            return 0.0;
+        return earnings.stream()
+                .filter(e -> e.getAmount() != null)
+                .mapToDouble(Earning::getAmount)
+                .sum();
+    }
+
+    public Double getTotal_deduction() {
+        return total_deduction;
+    }
+
+    public void setTotal_deduction(Double total_deduction) {
+        this.total_deduction = total_deduction;
+    }
+
 }

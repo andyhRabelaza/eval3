@@ -4,13 +4,23 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.io.OutputStream;
+
+import jakarta.servlet.http.HttpSession;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.nio.charset.StandardCharsets;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 @Service
@@ -26,7 +36,7 @@ public class ImportService {
             String line;
             while ((line = reader.readLine()) != null) {
                 lignes.add(line);
-                // System.out.println("Ligne lue : " + line); // Affichage dans le terminal
+                System.out.println("Ligne lue : " + line); // Affichage dans le terminal
             }
 
         } catch (Exception e) {
@@ -36,7 +46,7 @@ public class ImportService {
         return lignes;
     }
 
-    public void processFile1(MultipartFile file) {
+    public void processFile1(MultipartFile file, HttpSession session) {
         try (BufferedReader reader = new BufferedReader(
                 new InputStreamReader(file.getInputStream(), StandardCharsets.UTF_8))) {
 
@@ -65,6 +75,12 @@ public class ImportService {
                 String lastName = parts[1].trim();
                 String firstName = parts[2].trim();
                 String gender = parts[3].trim();
+                // Exemple de correction simple
+                if (gender.equalsIgnoreCase("Feminin") || gender.equalsIgnoreCase("Féminin")) {
+                    gender = "Female"; // correspond au genre attendu dans ERPNext
+                } else if (gender.equalsIgnoreCase("Masculin") || gender.equalsIgnoreCase("M")) {
+                    gender = "Male";
+                }
                 String dateEmbauche = parts[4].trim();
                 String dateNaissance = parts[5].trim();
                 String company = parts[6].trim();
@@ -82,12 +98,14 @@ public class ImportService {
                 jsonMap.put("first_name", firstName);
                 jsonMap.put("last_name", lastName);
                 jsonMap.put("gender", gender);
-                jsonMap.put("date_embauche", dateEmbauche);
-                jsonMap.put("date_naissance", dateNaissance);
+                jsonMap.put("date_of_joining", formatDate(dateEmbauche));
+                jsonMap.put("date_of_birth", formatDate(dateNaissance));
                 jsonMap.put("company", company);
 
-                // Affichage JSON formaté
-                System.out.println(mapper.writerWithDefaultPrettyPrinter().writeValueAsString(jsonMap));
+                ObjectMapper jsonMapper = new ObjectMapper();
+                String jsonData = jsonMapper.writeValueAsString(jsonMap);
+
+                sendToAPI(jsonData, session);
             }
 
         } catch (Exception e) {
@@ -95,7 +113,53 @@ public class ImportService {
         }
     }
 
-    public void processFile2(MultipartFile file) {
+    private void sendToAPI(String jsonData, HttpSession session) {
+        String sid = (String) session.getAttribute("sid");
+
+        if (sid == null || sid.isEmpty()) {
+            System.err.println("Erreur : aucune session 'sid' trouvée.");
+            return;
+        }
+
+        try {
+            URL url = new URL("http://erpnext.localhost:8000/api/resource/Employee");
+            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+            conn.setRequestMethod("POST");
+            conn.setRequestProperty("Content-Type", "application/json");
+            conn.setRequestProperty("Cookie", "sid=" + sid);
+            conn.setRequestProperty("Expect", ""); // <<< Ajouté ici pour éviter le 417
+            conn.setDoOutput(true);
+
+            try (OutputStream os = conn.getOutputStream()) {
+                byte[] input = jsonData.getBytes(StandardCharsets.UTF_8);
+                os.write(input, 0, input.length);
+            }
+
+            int responseCode = conn.getResponseCode();
+            if (responseCode == 200 || responseCode == 201) {
+                System.out.println("Employé importé avec succès.");
+            } else {
+                System.err.println("Échec de l'importation : Code " + responseCode);
+            }
+
+        } catch (Exception e) {
+            System.err.println("Erreur lors de l'envoi à l'API : " + e.getMessage());
+        }
+    }
+
+    private String formatDate(String inputDate) {
+        try {
+            DateTimeFormatter inputFormatter = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+            DateTimeFormatter outputFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+            LocalDate date = LocalDate.parse(inputDate, inputFormatter);
+            return outputFormatter.format(date);
+        } catch (DateTimeParseException e) {
+            System.err.println("Format de date invalide : " + inputDate);
+            return ""; // ou tu peux lever une exception selon ton besoin
+        }
+    }
+
+    public void processFile2(MultipartFile file, HttpSession session) {
         try (BufferedReader reader = new BufferedReader(
                 new InputStreamReader(file.getInputStream(), StandardCharsets.UTF_8))) {
 
@@ -106,13 +170,15 @@ public class ImportService {
             List<Map<String, Object>> earnings = new ArrayList<>();
             List<Map<String, Object>> deductions = new ArrayList<>();
 
+            Map<String, String> composantVersAbbr = new HashMap<>();
+
             while ((line = reader.readLine()) != null) {
                 if (isFirstLine) {
-                    isFirstLine = false; // on saute l'en-tête
+                    isFirstLine = false;
                     continue;
                 }
 
-                String[] parts = line.split(",", -1); // -1 pour inclure les colonnes vides
+                String[] parts = line.split(",", -1);
 
                 if (parts.length < 6) {
                     System.err.println("Ligne ignorée (format invalide) : " + line);
@@ -123,7 +189,7 @@ public class ImportService {
                 String component = parts[1].trim();
                 String abbr = parts[2].trim();
                 String type = parts[3].trim().toLowerCase();
-                String valeur = parts[4].trim();
+                String valeur = parts[4].trim(); // ➤ contient déjà la formule
                 String remarque = parts[5].trim();
 
                 if (structure.isEmpty() || component.isEmpty() || abbr.isEmpty() || type.isEmpty()
@@ -132,30 +198,31 @@ public class ImportService {
                     continue;
                 }
 
-                // Mémoriser le nom de la structure
                 if (salaryStructureName == null) {
                     salaryStructureName = structure;
                 }
 
-                // Transformer pourcentage en décimal
-                double pourcentage = 0;
-                try {
-                    pourcentage = Double.parseDouble(valeur.replace("%", "")) / 100.0;
-                } catch (NumberFormatException e) {
-                    System.err.println("Pourcentage invalide à la ligne : " + line);
-                    continue;
+                composantVersAbbr.put(component.toLowerCase(), abbr);
+
+                // ➤ Nettoyage de la formule (valeur), remplacement des composants par abbr
+                String rawFormula = valeur.toLowerCase();
+                String cleanedFormula = rawFormula;
+
+                for (Map.Entry<String, String> entry : composantVersAbbr.entrySet()) {
+                    cleanedFormula = cleanedFormula.replace(entry.getKey(), entry.getValue());
                 }
 
-                // Construire la formule
-                String formule = remarque.isEmpty()
-                        ? String.format("base * %.3f", pourcentage)
-                        : String.format("(%s) * %.3f", remarque.toLowerCase(), pourcentage);
+                // ➤ Remplacer SB (salaire de base) par "base"
+                cleanedFormula = cleanedFormula.replaceAll("(?i)sb", "base");
+
+                // ➤ Nettoyage final : supprimer les caractères indésirables
+                cleanedFormula = cleanedFormula.replaceAll("[^a-zA-Z0-9_+\\-*/.() ]", "");
 
                 Map<String, Object> item = new LinkedHashMap<>();
                 item.put("salary_component", component);
                 item.put("abbr", abbr);
-                item.put("amount", 0);
-                item.put("formula", formule);
+                // item.put("amount", 0); // Valeur fixe, ajustable si besoin
+                item.put("formula", cleanedFormula);
 
                 if (type.equals("earning")) {
                     earnings.add(item);
@@ -166,21 +233,65 @@ public class ImportService {
                 }
             }
 
-            // Construction de l'objet JSON final
             Map<String, Object> structureJson = new LinkedHashMap<>();
             structureJson.put("name", salaryStructureName);
-            structureJson.put("company", "My Company"); // à adapter selon ton contexte
+            structureJson.put("company", "My Company"); // À adapter si besoin
             structureJson.put("earnings", earnings);
             structureJson.put("deductions", deductions);
+            structureJson.put("docstatus", 1);
 
-            // Afficher le JSON généré
-            System.out.println("JSON généré pour Salary Structure :");
-            System.out.println(new com.fasterxml.jackson.databind.ObjectMapper()
-                    .writerWithDefaultPrettyPrinter()
-                    .writeValueAsString(structureJson));
+            ObjectMapper mapper = new ObjectMapper();
+            String jsonData = mapper.writerWithDefaultPrettyPrinter().writeValueAsString(structureJson);
+
+            System.out.println("✅ JSON généré :\n" + jsonData);
+
+            // sendSalaryStructureToAPI(jsonData, session);
 
         } catch (Exception e) {
-            System.err.println("Erreur lors du traitement du fichier : " + e.getMessage());
+            System.err.println("❌ Erreur lors du traitement du fichier : " + e.getMessage());
+        }
+    }
+
+    private void sendSalaryStructureToAPI(String jsonData, HttpSession session) {
+        String sid = (String) session.getAttribute("sid");
+
+        if (sid == null || sid.isEmpty()) {
+            System.err.println("Erreur : aucune session 'sid' trouvée.");
+            return;
+        }
+
+        try {
+            // Évite le bug 417
+            System.setProperty("sun.net.http.retryPost", "false");
+
+            URL url = new URL("http://erpnext.localhost:8000/api/resource/Salary%20Structure");
+            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+            conn.setRequestMethod("POST");
+            conn.setRequestProperty("Content-Type", "application/json");
+            conn.setRequestProperty("Cookie", "sid=" + sid);
+            conn.setRequestProperty("Expect", "");
+            conn.setDoOutput(true);
+
+            try (OutputStream os = conn.getOutputStream()) {
+                byte[] input = jsonData.getBytes(StandardCharsets.UTF_8);
+                os.write(input, 0, input.length);
+            }
+
+            int responseCode = conn.getResponseCode();
+            if (responseCode == 200 || responseCode == 201) {
+                System.out.println("✅ Salary Structure importée avec succès.");
+            } else {
+                System.err.println("❌ Échec de l'importation : Code " + responseCode);
+                try (BufferedReader br = new BufferedReader(new InputStreamReader(conn.getErrorStream()))) {
+                    String line;
+                    while ((line = br.readLine()) != null) {
+                        System.err.println(line);
+                    }
+                }
+            }
+
+        } catch (Exception e) {
+            System.err.println("Erreur lors de l'envoi à l'API : " + e.getMessage());
         }
     }
 

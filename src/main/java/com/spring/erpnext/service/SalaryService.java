@@ -32,8 +32,7 @@ public class SalaryService {
         }
 
         String url = "http://erpnext.localhost:8000/api/resource/Salary Slip" +
-                "?fields=[\"name\",\"employee\",\"employee_name\",\"start_date\",\"end_date\",\"gross_pay\",\"net_pay\",\"payment_days\",\"leave_without_pay\",\"salary_structure\",\"posting_date\",\"company\",\"status\",\"currency\"]"
-                +
+                "?fields=[\"*\"]" +
                 "&limit_page_length=1000";
 
         // Prépare les headers avec le cookie 'sid'
@@ -71,21 +70,21 @@ public class SalaryService {
         System.out.println("Date de fin : " + endDate);
         System.out.println("Filtres JSON : " + filtersJson);
 
-        // Construction correcte de l’URL
+        // Construction de l’URL avec le sid en paramètre
         URI uri = UriComponentsBuilder
                 .fromHttpUrl("http://erpnext.localhost:8000/api/resource/Salary Slip")
-                .queryParam("fields",
-                        "[\"name\",\"employee\",\"employee_name\",\"start_date\",\"end_date\",\"gross_pay\",\"net_pay\",\"payment_days\",\"leave_without_pay\",\"salary_structure\",\"posting_date\",\"company\",\"status\",\"currency\"]")
+                .queryParam("fields", "[\"*\"]")
                 .queryParam("filters", filtersJson)
+                .queryParam("sid", sid)
                 .queryParam("limit_page_length", "1000")
                 .build()
-                .encode() // encode tous les paramètres correctement, y compris les espaces
+                .encode()
                 .toUri();
 
         System.out.println("URL finale : " + uri);
 
         HttpHeaders headers = new HttpHeaders();
-        headers.set("Cookie", "sid=" + sid);
+        // Cookie non requis ici puisque le sid est passé dans l’URL
 
         HttpEntity<String> entity = new HttpEntity<>(headers);
 
@@ -157,6 +156,46 @@ public class SalaryService {
 
         public void setData(SalarySlip data) {
             this.data = data;
+        }
+    }
+
+    public SalarySlip getSalarySlipByIdRef(HttpSession session, String idRef) {
+        String sid = (String) session.getAttribute("sid");
+        if (sid == null || sid.isEmpty()) {
+            throw new IllegalStateException("Aucune session 'sid' trouvée.");
+        }
+
+        idRef = idRef.replaceAll("^/+", "").replaceAll("/+$", "");
+
+        URI uri = UriComponentsBuilder
+                .fromHttpUrl("http://erpnext.localhost:8000/api/resource/Salary Slip/" + idRef)
+                .queryParam("fields", "[\"*\"]")
+                .queryParam("sid", sid)
+                .build()
+                .encode()
+                .toUri();
+
+        System.out.println("Appel API pour Salary Slip ID : " + idRef);
+        System.out.println("URL finale : " + uri);
+
+        HttpHeaders headers = new HttpHeaders();
+        HttpEntity<String> entity = new HttpEntity<>(headers);
+
+        try {
+            ResponseEntity<SalarySlipResponse> response = restTemplate.exchange(
+                    uri,
+                    HttpMethod.GET,
+                    entity,
+                    SalarySlipResponse.class);
+
+            if (response.getStatusCode() == HttpStatus.OK && response.getBody() != null) {
+                return response.getBody().getData();
+            } else {
+                throw new RuntimeException("Erreur lors de la récupération du bulletin de salaire.");
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            throw new RuntimeException("Erreur lors de l'appel à l'API Frappe ERPNext.", e);
         }
     }
 

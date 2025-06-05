@@ -245,7 +245,7 @@ public class ImportService {
 
             System.out.println("✅ JSON généré :\n" + jsonData);
 
-            // sendSalaryStructureToAPI(jsonData, session);
+            sendSalaryStructureToAPI(jsonData, session);
 
         } catch (Exception e) {
             System.err.println("❌ Erreur lors du traitement du fichier : " + e.getMessage());

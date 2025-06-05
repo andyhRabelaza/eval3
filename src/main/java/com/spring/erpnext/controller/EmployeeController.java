@@ -52,7 +52,9 @@ public class EmployeeController {
         int toIndex = Math.min(fromIndex + pageSize, employees.size());
 
         List<Employee> paginated = employees.subList(fromIndex, toIndex);
+        String username = (String) session.getAttribute("username");
 
+        model.addAttribute("username", username);
         model.addAttribute("employees", paginated);
         model.addAttribute("currentPage", page);
         model.addAttribute("totalPages", totalPages);
@@ -69,7 +71,6 @@ public class EmployeeController {
 
         employeeService.deleteEmployee(name, session);
 
-        // Redirection vers la liste
         return "redirect:/employees";
     }
 

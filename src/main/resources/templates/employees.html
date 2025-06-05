@@ -3,8 +3,10 @@
         <div class="card-body">
             <h2 class="card-title">Liste des employés</h2>
 
-            <form th:action="@{/employees}" method="get" class="mb-3" style="display: flex; gap: 10px; align-items: center;">
-                <input type="text" name="search" th:value="${search}" placeholder="Rechercher un employé..." class="form-control" style="flex: 1;" />
+            <form th:action="@{/employees}" method="get" class="mb-3"
+                style="display: flex; gap: 10px; align-items: center;">
+                <input type="text" name="search" th:value="${search}" placeholder="Rechercher un employé..."
+                    class="form-control" style="flex: 1;" />
                 <button type="submit" class="btn-search">Rechercher</button>
             </form>
 
@@ -33,10 +35,9 @@
                         <td th:text="${employee.gender}">Genre</td>
                         <td th:text="${employee.company}">Entreprise</td>
                         <td>
-                           <a th:href="@{/employees/delete/{name}(name=${employee.name})}" 
-                            class="btn btn-danger btn-sm" 
-                            title="Supprimer"
-                            onclick="return confirm('Êtes-vous sûr de vouloir supprimer cet employé ?');">
+                            <a th:href="@{/employees/delete/{name}(name=${employee.name})}"
+                                class="btn btn-danger btn-sm" title="Supprimer"
+                                onclick="return confirm('Êtes-vous sûr de vouloir supprimer cet employé ?');">
                                 <i class="bi bi-trash"></i>
                             </a>
                         </td>
@@ -48,13 +49,16 @@
             <nav th:if="${totalPages > 1}">
                 <ul class="pagination">
                     <li class="page-item" th:classappend="${currentPage == 1} ? 'disabled'">
-                        <a class="page-link" th:href="@{/employees(page=${currentPage - 1}, search=${search})}">Précédent</a>
+                        <a class="page-link"
+                            th:href="@{/employees(page=${currentPage - 1}, search=${search})}">Précédent</a>
                     </li>
-                    <li class="page-item" th:each="i : ${#numbers.sequence(1, totalPages)}" th:classappend="${i == currentPage} ? 'active'">
+                    <li class="page-item" th:each="i : ${#numbers.sequence(1, totalPages)}"
+                        th:classappend="${i == currentPage} ? 'active'">
                         <a class="page-link" th:href="@{/employees(page=${i}, search=${search})}" th:text="${i}">1</a>
                     </li>
                     <li class="page-item" th:classappend="${currentPage == totalPages} ? 'disabled'">
-                        <a class="page-link" th:href="@{/employees(page=${currentPage + 1}, search=${search})}">Suivant</a>
+                        <a class="page-link"
+                            th:href="@{/employees(page=${currentPage + 1}, search=${search})}">Suivant</a>
                     </li>
                 </ul>
             </nav>

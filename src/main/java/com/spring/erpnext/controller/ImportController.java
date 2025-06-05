@@ -19,7 +19,10 @@ public class ImportController {
     }
 
     @GetMapping("/import")
-    public String importPage(Model model) {
+    public String importPage(Model model, HttpSession session) {
+
+        String username = (String) session.getAttribute("username");
+        model.addAttribute("username", username);
         model.addAttribute("page", "import");
         return "layout/base";
     }

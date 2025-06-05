@@ -28,6 +28,9 @@ public class HomeController {
         model.addAttribute("employeeCount", employeeCount);
         model.addAttribute("page", "index");
 
+        String username = (String) session.getAttribute("username");
+        model.addAttribute("username", username);
+
         return "layout/base";
     }
 

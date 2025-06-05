@@ -40,7 +40,8 @@
                         <!-- <td th:text="${salary.status}">Status</td> -->
                         <td th:text="${salary.currency}">Currency</td>
                         <td>
-                            <a th:href="@{/salary/export/pdf(name=${salary.name})}" title="Exporter en PDF" class="text-decoration-none text-danger" target="_blank">
+                            <a th:href="@{/salary/export/pdf(name=${salary.name})}" title="Exporter en PDF"
+                                class="text-decoration-none text-danger" target="_blank">
                                 <i class="bi bi-file-earmark-pdf-fill"></i> EXP-PDF
                             </a>
                         </td>
@@ -50,25 +51,25 @@
         </div>
     </div>
     <!-- Pagination -->
-<nav th:if="${totalPages > 1}">
-    <ul class="pagination justify-content-center mt-3">
-        <!-- Précédent -->
-        <li class="page-item" th:classappend="${currentPage == 1} ? 'disabled'">
-            <a class="page-link" th:href="@{/salary(page=${currentPage - 1})}">Précédent</a>
-        </li>
+    <nav th:if="${totalPages > 1}">
+        <ul class="pagination justify-content-center mt-3">
+            <!-- Précédent -->
+            <li class="page-item" th:classappend="${currentPage == 1} ? 'disabled'">
+                <a class="page-link" th:href="@{/salary(page=${currentPage - 1})}">Précédent</a>
+            </li>
 
-        <!-- Pages -->
-        <li class="page-item" th:each="i : ${#numbers.sequence(1, totalPages)}"
-            th:classappend="${i == currentPage} ? 'active'">
-            <a class="page-link" th:href="@{/salary(page=${i})}" th:text="${i}">1</a>
-        </li>
+            <!-- Pages -->
+            <li class="page-item" th:each="i : ${#numbers.sequence(1, totalPages)}"
+                th:classappend="${i == currentPage} ? 'active'">
+                <a class="page-link" th:href="@{/salary(page=${i})}" th:text="${i}">1</a>
+            </li>
 
-        <!-- Suivant -->
-        <li class="page-item" th:classappend="${currentPage == totalPages} ? 'disabled'">
-            <a class="page-link" th:href="@{/salary(page=${currentPage + 1})}">Suivant</a>
-        </li>
-    </ul>
-</nav>
+            <!-- Suivant -->
+            <li class="page-item" th:classappend="${currentPage == totalPages} ? 'disabled'">
+                <a class="page-link" th:href="@{/salary(page=${currentPage + 1})}">Suivant</a>
+            </li>
+        </ul>
+    </nav>
 
 </div>
 

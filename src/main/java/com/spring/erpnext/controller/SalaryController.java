@@ -17,9 +17,13 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 import java.io.IOException;
 import java.time.DateTimeException;
 import java.time.YearMonth;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
 import java.util.function.BiFunction;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import com.itextpdf.text.Rectangle;
 import com.itextpdf.text.BaseColor;
@@ -135,71 +139,6 @@ public class SalaryController {
         model.addAttribute("totalPages", totalPages);
         model.addAttribute("selectedMonth", monthYear);
         model.addAttribute("page", "salary-employe");
-
-        return "layout/base";
-    }
-
-    @GetMapping("/salary-statistique")
-    public String filtreEmployeEtSalaireParAnnee(
-            @RequestParam(value = "monthYear", required = false) String monthYear,
-            @RequestParam(defaultValue = "1") int page,
-            Model model,
-            HttpSession session,
-            RedirectAttributes redirectAttributes) {
-
-        String sid = (String) session.getAttribute("sid");
-        if (sid == null || sid.isEmpty()) {
-            return "redirect:/login";
-        }
-
-        List<SalarySlip> salarySlips;
-        Integer year = null;
-        Integer month = null;
-
-        if (monthYear != null && !monthYear.isEmpty()) {
-            try {
-                YearMonth parsed = YearMonth.parse(monthYear);
-                year = parsed.getYear();
-                month = parsed.getMonthValue();
-
-                model.addAttribute("selectedMonth", monthYear);
-                salarySlips = salaryService.getSalariesByMonth(session, year, month);
-            } catch (DateTimeException e) {
-                redirectAttributes.addFlashAttribute("errorMessage",
-                        "Format de date invalide. Veuillez utiliser AAAA-MM.");
-                return "redirect:/salary-employe-caracteristique";
-            }
-        } else {
-            salarySlips = salaryService.getAllSalaries(session);
-        }
-
-        // Pagination
-        int pageSize = 10;
-        int totalPages = (int) Math.ceil((double) salarySlips.size() / pageSize);
-        int fromIndex = (page - 1) * pageSize;
-        int toIndex = Math.min(fromIndex + pageSize, salarySlips.size());
-        List<SalarySlip> paginatedSlips = salarySlips.subList(fromIndex, toIndex);
-
-        double totalGrossPay = salarySlips.stream()
-                .filter(slip -> slip.getGross_pay() != null)
-                .mapToDouble(SalarySlip::getGross_pay)
-                .sum();
-
-        double totalNetPay = salarySlips.stream()
-                .filter(slip -> slip.getNet_pay() != null)
-                .mapToDouble(SalarySlip::getNet_pay)
-                .sum();
-
-        String username = (String) session.getAttribute("username");
-
-        model.addAttribute("username", username);
-        model.addAttribute("salarySlips", paginatedSlips);
-        model.addAttribute("totalGrossPay", totalGrossPay);
-        model.addAttribute("totalNetPay", totalNetPay);
-        model.addAttribute("currentPage", page);
-        model.addAttribute("totalPages", totalPages);
-        model.addAttribute("selectedMonth", monthYear);
-        model.addAttribute("page", "salary-employe-caracteristique");
 
         return "layout/base";
     }
@@ -416,6 +355,80 @@ public class SalaryController {
         document.add(footer);
 
         document.close();
+    }
+
+    @GetMapping("/salary-features")
+    public String getSalariesSummary(@RequestParam(required = false) Integer year,
+            Model model,
+            HttpSession session,
+            RedirectAttributes redirectAttributes) {
+
+        String sid = (String) session.getAttribute("sid");
+        if (sid == null || sid.isEmpty()) {
+            return "redirect:/login";
+        }
+
+        List<SalarySlip> salaries;
+
+        if (year != null) {
+            // Si un filtre année est appliqué
+            salaries = salaryService.getSalariesByYear(session, year);
+            model.addAttribute("selectedYear", year);
+        } else {
+            // Sinon, on récupère tous les salaires
+            salaries = salaryService.getAllSalaries(session);
+        }
+
+        // Regrouper les salaires par mois (clé = "YYYY-MM")
+        Map<String, List<SalarySlip>> groupedByMonth = salaries.stream()
+                .collect(Collectors.groupingBy(SalarySlip::getStartDateMonth, TreeMap::new, Collectors.toList()));
+
+        // Map de mois -> map de totaux
+        Map<String, Map<String, Double>> monthlyTotals = new TreeMap<>();
+
+        for (Map.Entry<String, List<SalarySlip>> entry : groupedByMonth.entrySet()) {
+            String month = entry.getKey();
+            List<SalarySlip> slips = entry.getValue();
+
+            double totalNet = slips.stream().mapToDouble(s -> s.getNet_pay() != null ? s.getNet_pay() : 0).sum();
+            double totalBrut = slips.stream().mapToDouble(s -> s.getGross_pay() != null ? s.getGross_pay() : 0).sum();
+            double totalEarning = slips.stream().mapToDouble(SalarySlip::getEarningTotal).sum();
+            double totalDeduction = slips.stream()
+                    .mapToDouble(slip -> slip.getTotal_deduction() != null ? slip.getTotal_deduction() : 0.0)
+                    .sum();
+
+            Map<String, Double> totals = new HashMap<>();
+            totals.put("net", totalNet);
+            totals.put("brut", totalBrut);
+            totals.put("earning", totalEarning);
+            totals.put("deduction", totalDeduction);
+
+            monthlyTotals.put(month, totals);
+        }
+
+        double totalBrutAll = 0.0;
+        double totalNetAll = 0.0;
+        double totalEarningAll = 0.0;
+        double totalDeductionAll = 0.0;
+
+        for (Map<String, Double> totals : monthlyTotals.values()) {
+            totalBrutAll += totals.getOrDefault("brut", 0.0);
+            totalNetAll += totals.getOrDefault("net", 0.0);
+            totalEarningAll += totals.getOrDefault("earning", 0.0);
+            totalDeductionAll += totals.getOrDefault("deduction", 0.0);
+        }
+
+        String username = (String) session.getAttribute("username");
+
+        model.addAttribute("totalBrutAll", totalBrutAll);
+        model.addAttribute("totalNetAll", totalNetAll);
+        model.addAttribute("totalEarningAll", totalEarningAll);
+        model.addAttribute("totalDeductionAll", totalDeductionAll);
+        model.addAttribute("username", username);
+        model.addAttribute("monthlyTotals", monthlyTotals);
+        model.addAttribute("page", "salary-features");
+
+        return "layout/base";
     }
 
 }

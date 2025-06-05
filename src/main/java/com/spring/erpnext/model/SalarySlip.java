@@ -1,7 +1,13 @@
 package com.spring.erpnext.model;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonProperty;
+
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.time.format.TextStyle;
 import java.util.List;
+import java.util.Locale;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class SalarySlip {
@@ -20,7 +26,11 @@ public class SalarySlip {
     private String company;
     private String status;
     private String currency;
+
+    @JsonProperty("earnings") // adapte au vrai nom dans JSON si nécessaire
     private List<Earning> earnings;
+
+    @JsonProperty("deductions") // adapte au vrai nom dans JSON si nécessaire
     private List<Deduction> deductions;
 
     private Double total_deduction;
@@ -57,6 +67,15 @@ public class SalarySlip {
 
     public void setStart_date(String start_date) {
         this.start_date = start_date;
+    }
+
+    public String getStartDateMonth() {
+        if (start_date == null || start_date.isEmpty()) {
+            return "";
+        }
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+        LocalDate date = LocalDate.parse(start_date, formatter);
+        return date.getMonth().getDisplayName(TextStyle.FULL, Locale.FRANCE);
     }
 
     public String getEnd_date() {

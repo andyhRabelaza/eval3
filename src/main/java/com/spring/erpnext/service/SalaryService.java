@@ -199,4 +199,56 @@ public class SalaryService {
         }
     }
 
+    public List<SalarySlip> getSalariesByYear(HttpSession session, int year) {
+        String sid = (String) session.getAttribute("sid");
+        if (sid == null || sid.isEmpty()) {
+            throw new IllegalStateException("Aucune session 'sid' trouvée.");
+        }
+
+        // Définir les dates de début et de fin pour l'année complète
+        String startDate = String.format("%04d-01-01", year);
+        String endDate = String.format("%04d-12-31", year);
+
+        String filtersJson = "[[\"Salary Slip\",\"start_date\",\"<=\",\"" + endDate + "\"]," +
+                "[\"Salary Slip\",\"end_date\",\">=\",\"" + startDate + "\"]]";
+
+        System.out.println("SID récupéré depuis la session: " + sid);
+        System.out.println("Date de début : " + startDate);
+        System.out.println("Date de fin : " + endDate);
+        System.out.println("Filtres JSON : " + filtersJson);
+
+        URI uri = UriComponentsBuilder
+                .fromHttpUrl("http://erpnext.localhost:8000/api/resource/Salary Slip")
+                .queryParam("fields", "[\"*\"]")
+                .queryParam("filters", filtersJson)
+                .queryParam("sid", sid)
+                .queryParam("limit_page_length", "1000")
+                .build()
+                .encode()
+                .toUri();
+
+        System.out.println("URL finale : " + uri);
+
+        HttpHeaders headers = new HttpHeaders();
+
+        HttpEntity<String> entity = new HttpEntity<>(headers);
+
+        try {
+            ResponseEntity<SalaryApiResponse> response = restTemplate.exchange(
+                    uri,
+                    HttpMethod.GET,
+                    entity,
+                    SalaryApiResponse.class);
+
+            if (response.getStatusCode() == HttpStatus.OK && response.getBody() != null) {
+                return response.getBody().getData();
+            } else {
+                throw new RuntimeException("Erreur lors de la récupération des bulletins de salaire.");
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            throw new RuntimeException("Erreur lors de l'appel à l'API Frappe ERPNext.");
+        }
+    }
+
 }

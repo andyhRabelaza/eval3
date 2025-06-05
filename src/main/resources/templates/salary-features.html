@@ -1,0 +1,58 @@
+<div th:fragment="content">
+    <div class="card">
+        <div class="card-body">
+            <h2 class="card-title">Résumé Mensuel des Salaires</h2>
+
+            <form th:action="@{/salary-features}" method="get" class="mb-3"
+                style="display: flex; gap: 10px; align-items: center;">
+                <select name="year" class="form-control" style="width: 200px;">
+                    <option value="" disabled selected>-- Sélectionnez une année --</option>
+                    <option th:each="year : ${#numbers.sequence(2020, 2026)}"
+                            th:value="${year}" th:text="${year}"
+                            th:selected="${year == selectedYear}">
+                        2025
+                    </option>
+                </select>
+                <button type="submit" class="btn-search">Filtrer</button>
+            </form>
+
+
+           <table class="table table-striped">
+                <thead class="thead-dark">
+                    <tr>
+                        <th>Mois</th>
+                        <th>Total Brut</th>
+                        <th>Total Net</th>
+                        <th>Total Earning</th>
+                        <th>Total Deduction</th>
+                        <th>Voir détails</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr th:each="entry : ${monthlyTotals}">
+                        <td class="month-cell" th:text="${entry.key}">2025-01</td>
+                        <td th:text="${entry.value['brut']}">0.00</td>
+                        <td th:text="${entry.value['net']}">0.00</td>
+                        <td th:text="${entry.value['earning']}">0.00</td>
+                        <td th:text="${entry.value['deduction']}">0.00</td>
+                        <td>
+                            <a href="#" class="view-details-link" title="Voir détails">
+                                <i class="fas fa-eye"></i>
+                            </a>
+                        </td>
+                    </tr>
+                </tbody>
+                <tfoot>
+                    <tr>
+                        <th>Total général</th>
+                        <th th:text="${totalBrutAll}">0.00</th>
+                        <th th:text="${totalNetAll}">0.00</th>
+                        <th th:text="${totalEarningAll}">0.00</th>
+                        <th th:text="${totalDeductionAll}">0.00</th>
+                        <th></th>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>
+</div>

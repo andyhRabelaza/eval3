@@ -64,6 +64,8 @@ public class SalaryController {
 
         List<SalarySlip> paginatedSalaries = salarySlips.subList(fromIndex, toIndex);
 
+        String username = (String) session.getAttribute("username");
+        model.addAttribute("username", username);
         model.addAttribute("salarySlips", paginatedSalaries);
         model.addAttribute("currentPage", page);
         model.addAttribute("totalPages", totalPages);
@@ -75,6 +77,7 @@ public class SalaryController {
     @GetMapping("/salary-employe")
     public String filtreEmployeEtSalaire(
             @RequestParam(value = "monthYear", required = false) String monthYear,
+            @RequestParam(defaultValue = "1") int page,
             Model model,
             HttpSession session,
             RedirectAttributes redirectAttributes) {
@@ -90,7 +93,6 @@ public class SalaryController {
 
         if (monthYear != null && !monthYear.isEmpty()) {
             try {
-                // Vérifie que la chaîne respecte bien le format AAAA-MM
                 YearMonth parsed = YearMonth.parse(monthYear);
                 year = parsed.getYear();
                 month = parsed.getMonthValue();
@@ -106,6 +108,13 @@ public class SalaryController {
             salarySlips = salaryService.getAllSalaries(session);
         }
 
+        // Pagination
+        int pageSize = 10;
+        int totalPages = (int) Math.ceil((double) salarySlips.size() / pageSize);
+        int fromIndex = (page - 1) * pageSize;
+        int toIndex = Math.min(fromIndex + pageSize, salarySlips.size());
+        List<SalarySlip> paginatedSlips = salarySlips.subList(fromIndex, toIndex);
+
         double totalGrossPay = salarySlips.stream()
                 .filter(slip -> slip.getGross_pay() != null)
                 .mapToDouble(SalarySlip::getGross_pay)
@@ -116,10 +125,81 @@ public class SalaryController {
                 .mapToDouble(SalarySlip::getNet_pay)
                 .sum();
 
-        model.addAttribute("salarySlips", salarySlips);
+        String username = (String) session.getAttribute("username");
+
+        model.addAttribute("username", username);
+        model.addAttribute("salarySlips", paginatedSlips);
         model.addAttribute("totalGrossPay", totalGrossPay);
         model.addAttribute("totalNetPay", totalNetPay);
+        model.addAttribute("currentPage", page);
+        model.addAttribute("totalPages", totalPages);
+        model.addAttribute("selectedMonth", monthYear);
         model.addAttribute("page", "salary-employe");
+
+        return "layout/base";
+    }
+
+    @GetMapping("/salary-statistique")
+    public String filtreEmployeEtSalaireParAnnee(
+            @RequestParam(value = "monthYear", required = false) String monthYear,
+            @RequestParam(defaultValue = "1") int page,
+            Model model,
+            HttpSession session,
+            RedirectAttributes redirectAttributes) {
+
+        String sid = (String) session.getAttribute("sid");
+        if (sid == null || sid.isEmpty()) {
+            return "redirect:/login";
+        }
+
+        List<SalarySlip> salarySlips;
+        Integer year = null;
+        Integer month = null;
+
+        if (monthYear != null && !monthYear.isEmpty()) {
+            try {
+                YearMonth parsed = YearMonth.parse(monthYear);
+                year = parsed.getYear();
+                month = parsed.getMonthValue();
+
+                model.addAttribute("selectedMonth", monthYear);
+                salarySlips = salaryService.getSalariesByMonth(session, year, month);
+            } catch (DateTimeException e) {
+                redirectAttributes.addFlashAttribute("errorMessage",
+                        "Format de date invalide. Veuillez utiliser AAAA-MM.");
+                return "redirect:/salary-employe-caracteristique";
+            }
+        } else {
+            salarySlips = salaryService.getAllSalaries(session);
+        }
+
+        // Pagination
+        int pageSize = 10;
+        int totalPages = (int) Math.ceil((double) salarySlips.size() / pageSize);
+        int fromIndex = (page - 1) * pageSize;
+        int toIndex = Math.min(fromIndex + pageSize, salarySlips.size());
+        List<SalarySlip> paginatedSlips = salarySlips.subList(fromIndex, toIndex);
+
+        double totalGrossPay = salarySlips.stream()
+                .filter(slip -> slip.getGross_pay() != null)
+                .mapToDouble(SalarySlip::getGross_pay)
+                .sum();
+
+        double totalNetPay = salarySlips.stream()
+                .filter(slip -> slip.getNet_pay() != null)
+                .mapToDouble(SalarySlip::getNet_pay)
+                .sum();
+
+        String username = (String) session.getAttribute("username");
+
+        model.addAttribute("username", username);
+        model.addAttribute("salarySlips", paginatedSlips);
+        model.addAttribute("totalGrossPay", totalGrossPay);
+        model.addAttribute("totalNetPay", totalNetPay);
+        model.addAttribute("currentPage", page);
+        model.addAttribute("totalPages", totalPages);
+        model.addAttribute("selectedMonth", monthYear);
+        model.addAttribute("page", "salary-employe-caracteristique");
 
         return "layout/base";
     }

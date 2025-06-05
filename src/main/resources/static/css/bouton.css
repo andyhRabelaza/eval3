@@ -7,21 +7,18 @@ form {
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
 
-/* Container input-group avec un peu d'espace */
 .input-group {
   margin-bottom: 15px;
   display: flex;
   flex-direction: column;
 }
 
-/* Label clair et lisible */
 .input-group label {
   margin-bottom: 6px;
   font-weight: 600;
   color: #222;
 }
 
-/* Input fichiers plus esthétiques */
 input[type="file"] {
   padding: 8px;
   border: 1px solid #ccc;
@@ -31,14 +28,12 @@ input[type="file"] {
   transition: border-color 0.3s ease;
 }
 
-/* Input focus */
 input[type="file"]:focus {
   outline: none;
   border-color: #212529;
   box-shadow: 0 0 5px rgba(0,123,255,0.5);
 }
 
-/* Bouton stylé */
 .btn-import {
   background-color: #212529;
   color: white;
@@ -53,7 +48,6 @@ input[type="file"]:focus {
   margin-top: 10px;
 }
 
-/* Hover bouton */
 .btn-import:hover {
   background-color: #000000;
 }
@@ -92,7 +86,6 @@ input[type="file"]:focus {
   transition: color 0.3s ease;
 }
 
-/* Pour que l'icône et le texte changent ensemble */
 .logout-btn:hover .logout-icon,
 .logout-btn:focus .logout-icon {
   color: #00ffbf;

@@ -165,14 +165,13 @@ public class SalaryService {
             throw new IllegalStateException("Aucune session 'sid' trouvée.");
         }
 
-        idRef = idRef.replaceAll("^/+", "").replaceAll("/+$", "");
-
+        // Ne pas encoder manuellement ici
         URI uri = UriComponentsBuilder
                 .fromHttpUrl("http://erpnext.localhost:8000/api/resource/Salary Slip/" + idRef)
                 .queryParam("fields", "[\"*\"]")
                 .queryParam("sid", sid)
                 .build()
-                .encode()
+                .encode() // fait l'encodage correctement une seule fois
                 .toUri();
 
         System.out.println("Appel API pour Salary Slip ID : " + idRef);

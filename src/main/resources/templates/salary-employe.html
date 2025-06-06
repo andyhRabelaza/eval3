@@ -19,6 +19,7 @@
                 <thead>
                     <tr>
                         <th>Employé</th>
+                        <th>Reference</th>
                         <th>Nom</th>
                         <th>Date début</th>
                         <th>Date fin</th>
@@ -26,11 +27,13 @@
                         <th>Net</th>
                         <th>Deduction</th>
                         <th>Earning</th>
+                        <th>Action</th>
                     </tr>
                 </thead>
                 <tbody>
                     <tr th:each="slip : ${salarySlips}">
                         <td th:text="${slip.employee}">EMP001</td>
+                        <td th:text="${slip.name}">slap slip</td>
                         <td th:text="${slip.employee_name}">John Doe</td>
                         <td th:text="${slip.start_date}">2025-01-01</td>
                         <td th:text="${slip.end_date}">2025-01-31</td>
@@ -38,6 +41,11 @@
                         <td th:text="${slip.net_pay}">1800.00</td>
                         <td th:text="${slip.total_deduction}">0.0</td>
                         <td th:text="${slip.gross_pay}">0.00</td>
+                        <td class="text-center align-middle">
+                            <a href="#" class="view-details-link" th:attr="data-name=${slip.name}" title="Voir détails">
+                                <i class="fas fa-eye"></i>
+                            </a>
+                        </td>
                     </tr>
                 </tbody>
                 <tfoot>
@@ -66,6 +74,25 @@
                     </li>
                 </ul>
             </nav>
+        </div>
+    </div>
+
+    <div id="detailsModal" class="modal">
+        <div class="modal-content">
+            <span id="closeModal">&times;</span>
+            <h2>Détails du Bulletin</h2>
+
+            <p><strong>Nom de l'employé :</strong> <span id="modalSlipName"></span></p>
+            <p><strong>Salaire Brut :</strong> <span id="modalGrossPay"></span></p>
+            <p><strong>Salaire Net :</strong> <span id="modalNetPay"></span></p>
+
+            <hr>
+
+            <h3>Éléments de salaire</h3>
+            <ul id="modalEarningsList"></ul>
+
+            <h3>Déductions</h3>
+            <ul id="modalDeductionsList"></ul>
         </div>
     </div>
 </div>

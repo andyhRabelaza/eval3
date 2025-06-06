@@ -1,0 +1,76 @@
+/* Modal overlay */
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+}
+
+/* Modal content */
+.modal-content {
+    background-color: #fff;
+    padding: 30px;
+    margin: auto;
+    margin-top: 5%;
+    width: 90%;
+    max-width: 500px;
+    border-radius: 12px;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);
+    font-family: "Segoe UI", Roboto, Arial, sans-serif;
+    max-height: 85vh;
+    overflow-y: auto;
+    position: relative;
+    animation: fadeIn 0.3s ease-in-out;
+}
+
+/* Close button */
+#closeModal {
+    position: absolute;
+    top: 15px;
+    right: 20px;
+    font-size: 24px;
+    cursor: pointer;
+    color: #aaa;
+    transition: color 0.3s ease;
+}
+#closeModal:hover {
+    color: #333;
+}
+
+/* Headings and text */
+.modal-content h2 {
+    text-align: center;
+    margin-bottom: 20px;
+    color: #333;
+}
+.modal-content h3 {
+    margin-top: 20px;
+    color: #444;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 5px;
+}
+.modal-content p {
+    margin: 10px 0;
+    font-size: 15px;
+    color: #444;
+}
+
+/* Earnings and Deductions lists */
+.modal-content ul {
+    padding-left: 20px;
+}
+.modal-content ul li {
+    margin: 5px 0;
+    font-size: 14px;
+    color: #555;
+}
+
+/* Animation */
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-20px); }
+    to { opacity: 1; transform: translateY(0); }
+}

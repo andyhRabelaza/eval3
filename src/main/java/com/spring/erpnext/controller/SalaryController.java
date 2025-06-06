@@ -8,10 +8,13 @@ import com.spring.erpnext.service.SalaryService;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import java.io.IOException;
@@ -392,7 +395,8 @@ public class SalaryController {
 
             double totalNet = slips.stream().mapToDouble(s -> s.getNet_pay() != null ? s.getNet_pay() : 0).sum();
             double totalBrut = slips.stream().mapToDouble(s -> s.getGross_pay() != null ? s.getGross_pay() : 0).sum();
-            double totalEarning = slips.stream().mapToDouble(SalarySlip::getEarningTotal).sum();
+            // double totalEarning =
+            // slips.stream().mapToDouble(SalarySlip::getEarningTotal).sum();
             double totalDeduction = slips.stream()
                     .mapToDouble(slip -> slip.getTotal_deduction() != null ? slip.getTotal_deduction() : 0.0)
                     .sum();
@@ -400,7 +404,7 @@ public class SalaryController {
             Map<String, Double> totals = new HashMap<>();
             totals.put("net", totalNet);
             totals.put("brut", totalBrut);
-            totals.put("earning", totalEarning);
+            // totals.put("earning", totalEarning);
             totals.put("deduction", totalDeduction);
 
             monthlyTotals.put(month, totals);
@@ -429,6 +433,18 @@ public class SalaryController {
         model.addAttribute("page", "salary-features");
 
         return "layout/base";
+    }
+
+    @GetMapping("/salary-slip")
+    @ResponseBody
+    public ResponseEntity<SalarySlip> afficherFicheSalaire(@RequestParam String idRef, HttpSession session) {
+        System.out.println("appel controller avec idRef = " + idRef);
+        SalarySlip slip = salaryService.getSalarySlipByIdRef(session, idRef);
+        if (slip != null) {
+            return ResponseEntity.ok(slip);
+        } else {
+            return ResponseEntity.notFound().build();
+        }
     }
 
 }

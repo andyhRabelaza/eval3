@@ -7,7 +7,7 @@
                 style="display: flex; gap: 10px; align-items: center;">
                 <select name="year" class="form-control" style="width: 200px;">
                     <option value="" disabled selected>-- Sélectionnez une année --</option>
-                    <option th:each="year : ${#numbers.sequence(2020, 2026)}" th:value="${year}" th:text="${year}"
+                    <option th:each="year : ${#numbers.sequence(2024, 2026)}" th:value="${year}" th:text="${year}"
                         th:selected="${year == selectedYear}">
                         2025
                     </option>

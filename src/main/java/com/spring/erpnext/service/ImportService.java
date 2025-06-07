@@ -36,7 +36,7 @@ public class ImportService {
             String line;
             while ((line = reader.readLine()) != null) {
                 lignes.add(line);
-                System.out.println("Ligne lue : " + line); // Affichage dans le terminal
+                // System.out.println("Ligne lue : " + line); // Affichage dans le terminal
             }
 
         } catch (Exception e) {
@@ -292,6 +292,130 @@ public class ImportService {
 
         } catch (Exception e) {
             System.err.println("Erreur lors de l'envoi à l'API : " + e.getMessage());
+        }
+    }
+
+    public void processFile3(MultipartFile file, HttpSession session) {
+        try (BufferedReader reader = new BufferedReader(
+                new InputStreamReader(file.getInputStream(), StandardCharsets.UTF_8))) {
+
+            String line;
+            boolean isFirstLine = true;
+            List<Map<String, Object>> slips = new ArrayList<>();
+
+            while ((line = reader.readLine()) != null) {
+                if (isFirstLine) {
+                    isFirstLine = false;
+                    continue; // sauter l'en-tête
+                }
+
+                String[] parts = line.split(",", -1);
+
+                if (parts.length < 4) {
+                    System.err.println("Ligne ignorée (format invalide) : " + line);
+                    continue;
+                }
+
+                String mois = parts[0].trim(); // Exemple : 01/04/2025
+                String employeeId = parts[1].trim(); // Exemple : 1
+                String salaireBaseStr = parts[2].trim(); // Exemple : 1500000
+                String structure = parts[3].trim(); // Exemple : gasy1
+
+                if (mois.isEmpty() || employeeId.isEmpty() || salaireBaseStr.isEmpty() || structure.isEmpty()) {
+                    System.err.println("Ligne ignorée (champ vide) : " + line);
+                    continue;
+                }
+
+                double baseSalary = Double.parseDouble(salaireBaseStr);
+
+                // Extraire le mois et l'année
+                String[] dateParts = mois.split("/");
+                if (dateParts.length != 3) {
+                    System.err.println("Format de date invalide : " + mois);
+                    continue;
+                }
+
+                String start_date = dateParts[2] + "-" + dateParts[1] + "-01"; // ex: 2025-04-01
+                String end_date = dateParts[2] + "-" + dateParts[1] + "-30"; // simplification
+
+                Map<String, Object> slip = new LinkedHashMap<>();
+                slip.put("employee", String.format("HR-EMP-%05d", Integer.parseInt(employeeId))); // selon votre système
+                slip.put("salary_structure", structure);
+                slip.put("start_date", start_date);
+                slip.put("end_date", end_date);
+                slip.put("base", baseSalary);
+                slip.put("docstatus", 1);
+
+                slips.add(slip);
+            }
+
+            // Regrouper dans un seul JSON si tu veux tout envoyer d’un coup
+            Map<String, Object> jsonWrapper = new HashMap<>();
+            jsonWrapper.put("salary_slips", slips);
+
+            ObjectMapper mapper = new ObjectMapper();
+            String jsonData = mapper.writerWithDefaultPrettyPrinter().writeValueAsString(jsonWrapper);
+
+            System.out.println("✅ JSON généré :\n" + jsonData);
+
+            // ➤ Tu peux maintenant appeler sendToApi(jsonData)
+            sendSalarySlipsToAPI(slips, session);
+
+        } catch (Exception e) {
+            System.err.println("❌ Erreur : " + e.getMessage());
+        }
+    }
+
+    private void sendSalarySlipsToAPI(List<Map<String, Object>> slips, HttpSession session) {
+        String sid = (String) session.getAttribute("sid");
+
+        if (sid == null || sid.isEmpty()) {
+            System.err.println("Erreur : aucune session 'sid' trouvée.");
+            return;
+        }
+
+        for (Map<String, Object> slip : slips) {
+            try {
+                URL url = new URL("http://erpnext.localhost:8000/api/resource/Salary Slip");
+                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                conn.setRequestMethod("POST");
+                conn.setRequestProperty("Content-Type", "application/json");
+                conn.setRequestProperty("Cookie", "sid=" + sid);
+                conn.setDoOutput(true);
+
+                // Convertir la map slip en JSON
+                Map<String, Object> wrapper = new HashMap<>();
+                wrapper.put("employee", slip.get("employee"));
+                wrapper.put("salary_structure", slip.get("salary_structure"));
+                wrapper.put("start_date", slip.get("start_date"));
+                wrapper.put("end_date", slip.get("end_date"));
+                wrapper.put("base", slip.get("base"));
+                wrapper.put("docstatus", slip.get("docstatus"));
+
+                ObjectMapper mapper = new ObjectMapper();
+                String json = mapper.writeValueAsString(wrapper);
+
+                try (OutputStream os = conn.getOutputStream()) {
+                    byte[] input = json.getBytes(StandardCharsets.UTF_8);
+                    os.write(input, 0, input.length);
+                }
+
+                int responseCode = conn.getResponseCode();
+                if (responseCode == 200 || responseCode == 201) {
+                    System.out.println("✅ Slip envoyé : " + slip.get("employee"));
+                } else {
+                    System.err.println("❌ Échec (code " + responseCode + ") pour " + slip.get("employee"));
+                    try (BufferedReader br = new BufferedReader(new InputStreamReader(conn.getErrorStream()))) {
+                        String line;
+                        while ((line = br.readLine()) != null) {
+                            System.err.println(line);
+                        }
+                    }
+                }
+
+            } catch (Exception e) {
+                System.err.println("❌ Erreur API : " + e.getMessage());
+            }
         }
     }
 

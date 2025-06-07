@@ -48,6 +48,7 @@ public class ImportController {
             if (!file3.isEmpty()) {
                 System.out.println("Fichier 3: " + file3.getOriginalFilename());
                 importService.readFileLines(file3);
+                importService.processFile3(file3, session);
             }
 
             model.addAttribute("message", "Importation réussie !");

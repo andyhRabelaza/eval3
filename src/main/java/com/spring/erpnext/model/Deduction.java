@@ -3,6 +3,7 @@ package com.spring.erpnext.model;
 public class Deduction {
     private String salary_component;
     private Double amount;
+    private String yearMonth;
 
     public String getSalary_component() {
         return salary_component;
@@ -18,5 +19,13 @@ public class Deduction {
 
     public void setAmount(Double amount) {
         this.amount = amount;
+    }
+
+    public void setYearMonth(String yearMonth) {
+        this.yearMonth = yearMonth;
+    }
+
+    public String getYearMonth() {
+        return yearMonth;
     }
 }

@@ -26,6 +26,7 @@
             <div class="d-flex align-items-center">
                 <a class="navbar-brand me-4" href="/index">
                     <img th:src="@{/image/hr.png}" alt="Accueil" style="height: 40px; margin-left: 33px;">
+                    Frappe HR
                 </a>
 
                 <div class="d-flex align-items-center user-info">
@@ -62,7 +63,10 @@
                     <a class="nav-link" th:href="@{/salary-employe}">Filtrage employe</a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" th:href="@{/salary-features}">Statistique</a>
+                    <a class="nav-link" th:href="@{/salary-features}">Statistiques</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" th:href="@{/salary/year}">Graphes</a>
                 </li>
             </ul>
         </div>
@@ -76,6 +80,7 @@
     <script th:src="@{/JS/salary_details.js}"></script>
     <script th:src="@{/JS/salary_ref.js}"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="/JS/salary-charts.js"></script>    
 
 
 </body>

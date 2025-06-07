@@ -12,7 +12,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
+// import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
@@ -20,12 +20,15 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 import java.io.IOException;
 import java.time.DateTimeException;
 import java.time.YearMonth;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.TreeMap;
 import java.util.function.BiFunction;
 import java.util.function.Function;
+import java.util.function.ToDoubleFunction;
 import java.util.stream.Collectors;
 
 import com.itextpdf.text.Rectangle;
@@ -445,6 +448,99 @@ public class SalaryController {
         } else {
             return ResponseEntity.notFound().build();
         }
+    }
+
+    @GetMapping("/salary/year")
+    public String salaryByYear(
+            @RequestParam(value = "year", required = false) Integer year,
+            Model model,
+            HttpSession session) {
+
+        String sid = (String) session.getAttribute("sid");
+        if (sid == null || sid.trim().isEmpty()) {
+            return "redirect:/login";
+        }
+
+        String username = (String) session.getAttribute("username");
+        model.addAttribute("username", username);
+        model.addAttribute("page", "salary-year");
+
+        if (year == null) {
+            year = 2025;
+        }
+
+        model.addAttribute("selectedYear", year);
+
+        if (year != null) {
+            // 1. Earnings & Deductions détaillés
+            Map<String, List<Earning>> earningsByComponent = salaryService.getEarningsDetailsByComponent(session, year);
+            Map<String, List<Deduction>> deductionsByComponent = salaryService.getDeductionsDetailsByComponent(session,
+                    year);
+
+            // 2. Totaux par composant
+            Map<String, Double> earningsTotals = sumAmounts(earningsByComponent, Earning::getAmount);
+            Map<String, Double> deductionsTotals = sumAmounts(deductionsByComponent, Deduction::getAmount);
+
+            // 3. Préparer données pour graphiques (earnings)
+            List<Map<String, Object>> earningsChartData = new ArrayList<>();
+            for (Map.Entry<String, List<Earning>> entry : earningsByComponent.entrySet()) {
+                String comp = entry.getKey();
+                for (Earning earning : entry.getValue()) {
+                    Map<String, Object> data = new HashMap<>();
+                    data.put("composant", comp);
+                    data.put("mois", earning.getYearMonth());
+                    data.put("montant", earning.getAmount());
+                    earningsChartData.add(data);
+                }
+            }
+
+            // 4. Préparer données pour graphiques (deductions)
+            List<Map<String, Object>> deductionsChartData = new ArrayList<>();
+            for (Map.Entry<String, List<Deduction>> entry : deductionsByComponent.entrySet()) {
+                String comp = entry.getKey();
+                for (Deduction deduction : entry.getValue()) {
+                    Map<String, Object> data = new HashMap<>();
+                    data.put("composant", comp);
+                    data.put("mois", deduction.getYearMonth());
+                    data.put("montant", deduction.getAmount());
+                    deductionsChartData.add(data);
+                }
+            }
+
+            // 5. Injecter dans le modèle
+            model.addAttribute("earningsByComponent", earningsByComponent);
+            model.addAttribute("deductionsByComponent", deductionsByComponent);
+            model.addAttribute("earningsTotals", earningsTotals);
+            model.addAttribute("deductionsTotals", deductionsTotals);
+            model.addAttribute("earningsChartData", earningsChartData);
+            model.addAttribute("deductionsChartData", deductionsChartData);
+            model.addAttribute("selectedYear", year);
+        }
+
+        return "layout/base";
+    }
+
+    /**
+     * Méthode générique pour sommer les montants d’une map de listes d’objets ayant
+     * un montant.
+     * 
+     * @param dataMap         Map avec clé String et valeur List<T>
+     * @param amountExtractor Fonction lambda pour extraire le montant de l'objet T
+     * @param <T>             Type générique de l'objet (Earning ou Deduction)
+     * @return Map des totaux par clé
+     */
+    private <T> Map<String, Double> sumAmounts(Map<String, List<T>> dataMap, ToDoubleFunction<T> amountExtractor) {
+        Map<String, Double> sums = new HashMap<>();
+        if (dataMap != null) {
+            for (Map.Entry<String, List<T>> entry : dataMap.entrySet()) {
+                double total = entry.getValue().stream()
+                        .filter(Objects::nonNull)
+                        .mapToDouble(amountExtractor)
+                        .sum();
+                sums.put(entry.getKey(), total);
+            }
+        }
+        return sums;
     }
 
 }

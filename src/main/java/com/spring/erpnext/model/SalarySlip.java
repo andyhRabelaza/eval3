@@ -200,4 +200,11 @@ public class SalarySlip {
         this.total_deduction = total_deduction;
     }
 
+    public String getYearMonth() {
+        if (start_date != null && start_date.length() >= 7) {
+            return start_date.substring(0, 7); // "YYYY-MM"
+        }
+        return "inconnu";
+    }
+
 }

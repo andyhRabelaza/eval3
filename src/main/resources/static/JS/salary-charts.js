@@ -46,7 +46,6 @@ function renderChart(canvasId, chartData, title) {
   });
 }
 
-// Lancer les graphiques seulement si les données existent
 if (typeof earningsData !== 'undefined' && earningsData.length > 0) {
   const earningsChartPrepared = prepareChartData(earningsData);
   renderChart('earningsChart', earningsChartPrepared, 'Revenus mensuels par composant');

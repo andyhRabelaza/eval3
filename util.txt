@@ -1,0 +1,12 @@
+Database changed
+MariaDB [_7c1adeb4e28c67ac]> SELECT * FROM `tabSeries` WHERE name LIKE 'HR-EMP-%';
++---------+---------+
+| name    | current |
++---------+---------+
+| HR-EMP- |      20 |
++---------+---------+
+1 row in set (0.000 sec)
+
+MariaDB [_7c1adeb4e28c67ac]> UPDATE `tabSeries` SET current=0 WHERE name='HR-EMP-';
+Query OK, 1 row affected (0.004 sec)
+Rows matched: 1  Changed: 1  Warnings: 0

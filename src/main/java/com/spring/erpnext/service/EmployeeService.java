@@ -142,4 +142,38 @@ public class EmployeeService {
         }
     }
 
+    public boolean insertEmployee(Employee employee, HttpSession session) {
+        String sid = (String) session.getAttribute("sid");
+
+        if (sid == null || sid.isEmpty()) {
+            throw new IllegalStateException("Aucune session 'sid' trouvée.");
+        }
+
+        String url = "http://erpnext.localhost:8000/api/resource/Employee";
+
+        try {
+            // Convertir l'objet Employee en JSON
+            String employeeJson = objectMapper.writeValueAsString(employee);
+
+            // Préparer les headers
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.set("Cookie", "sid=" + sid);
+
+            HttpEntity<String> entity = new HttpEntity<>(employeeJson, headers);
+
+            ResponseEntity<String> response = restTemplate.exchange(
+                    url,
+                    HttpMethod.POST,
+                    entity,
+                    String.class);
+
+            return response.getStatusCode() == HttpStatus.OK || response.getStatusCode() == HttpStatus.CREATED;
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
+
 }

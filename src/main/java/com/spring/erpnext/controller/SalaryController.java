@@ -363,7 +363,7 @@ public class SalaryController {
         document.close();
     }
 
-    @GetMapping("/salary-features")
+    @GetMapping("/salary-statistiques")
     public String getSalariesSummary(@RequestParam(required = false) Integer year,
             Model model,
             HttpSession session,
@@ -433,7 +433,7 @@ public class SalaryController {
         model.addAttribute("totalDeductionAll", totalDeductionAll);
         model.addAttribute("username", username);
         model.addAttribute("monthlyTotals", monthlyTotals);
-        model.addAttribute("page", "salary-features");
+        model.addAttribute("page", "salary-statistique");
 
         return "layout/base";
     }
@@ -450,7 +450,7 @@ public class SalaryController {
         }
     }
 
-    @GetMapping("/salary/year")
+    @GetMapping("/salary-graphe")
     public String salaryByYear(
             @RequestParam(value = "year", required = false) Integer year,
             Model model,
@@ -463,7 +463,7 @@ public class SalaryController {
 
         String username = (String) session.getAttribute("username");
         model.addAttribute("username", username);
-        model.addAttribute("page", "salary-year");
+        model.addAttribute("page", "salary-graphe");
 
         if (year == null) {
             year = 2025;

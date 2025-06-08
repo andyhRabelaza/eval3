@@ -8,7 +8,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import java.util.List;
 
@@ -72,6 +75,39 @@ public class EmployeeController {
         employeeService.deleteEmployee(name, session);
 
         return "redirect:/employees";
+    }
+
+    @GetMapping("/employees-add")
+    public String InsertEmployePage(HttpSession session, Model model) {
+        if (session.getAttribute("sid") == null) {
+            return "redirect:/login";
+        }
+
+        String username = (String) session.getAttribute("username");
+        model.addAttribute("username", username);
+        model.addAttribute("page", "employees-add");
+
+        // ✅ Nécessaire pour que th:object fonctionne
+        model.addAttribute("employee", new Employee());
+
+        return "layout/base";
+    }
+
+    @PostMapping("/employee/add")
+    public String submitEmployeeForm(
+            @ModelAttribute("employee") Employee employee,
+            HttpSession session,
+            RedirectAttributes redirectAttributes) {
+
+        boolean success = employeeService.insertEmployee(employee, session);
+
+        if (success) {
+            redirectAttributes.addFlashAttribute("message", "Employé ajouté avec succès.");
+        } else {
+            redirectAttributes.addFlashAttribute("error", "Échec de l'ajout de l'employé.");
+        }
+
+        return "redirect:/employees-add";
     }
 
 }

@@ -22,6 +22,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.regex.Pattern;
 
 @Service
 public class ImportService {
@@ -36,7 +37,7 @@ public class ImportService {
             String line;
             while ((line = reader.readLine()) != null) {
                 lignes.add(line);
-                // System.out.println("Ligne lue : " + line); // Affichage dans le terminal
+                System.out.println("Ligne lue : " + line); // Affichage dans le terminal
             }
 
         } catch (Exception e) {
@@ -54,8 +55,6 @@ public class ImportService {
             boolean isFirstLine = true;
             int lineNumber = 0;
 
-            ObjectMapper mapper = new ObjectMapper();
-
             while ((line = reader.readLine()) != null) {
                 lineNumber++;
 
@@ -67,31 +66,45 @@ public class ImportService {
                 String[] parts = line.split(",");
 
                 if (parts.length < 7) {
-                    System.err.println("Ligne " + lineNumber + " ignorée (format invalide) : " + line);
-                    continue;
+                    System.err
+                            .println("❌ Erreur à la ligne " + lineNumber + " : format invalide (moins de 7 colonnes).");
+                    return;
                 }
 
                 String ref = parts[0].trim();
                 String lastName = parts[1].trim();
                 String firstName = parts[2].trim();
                 String gender = parts[3].trim();
-                // Exemple de correction simple
-                if (gender.equalsIgnoreCase("Feminin") || gender.equalsIgnoreCase("Féminin")) {
-                    gender = "Female"; // correspond au genre attendu dans ERPNext
-                } else if (gender.equalsIgnoreCase("Masculin") || gender.equalsIgnoreCase("M")) {
-                    gender = "Male";
-                }
                 String dateEmbauche = parts[4].trim();
                 String dateNaissance = parts[5].trim();
                 String company = parts[6].trim();
 
+                // Vérification des champs vides
                 if (ref.isEmpty() || lastName.isEmpty() || firstName.isEmpty() || gender.isEmpty()
                         || dateEmbauche.isEmpty() || dateNaissance.isEmpty() || company.isEmpty()) {
-                    System.err.println("Ligne " + lineNumber + " ignorée (champ vide) : " + line);
-                    continue;
+                    System.err.println("❌ Erreur à la ligne " + lineNumber + " : un ou plusieurs champs sont vides.");
+                    return;
                 }
 
-                String name = String.format("HR-EMP-%05d", Integer.parseInt(ref));
+                // Normalisation du genre
+                if (gender.equalsIgnoreCase("Feminin") || gender.equalsIgnoreCase("Féminin")) {
+                    gender = "Female";
+                } else if (gender.equalsIgnoreCase("Masculin") || gender.equalsIgnoreCase("M")) {
+                    gender = "Male";
+                } else if (!gender.equalsIgnoreCase("Male") && !gender.equalsIgnoreCase("Female")) {
+                    System.err.println("❌ Erreur à la ligne " + lineNumber + " : genre invalide (« " + gender + " »).");
+                    return;
+                }
+
+                // Construction du nom unique de l'employé
+                String name;
+                try {
+                    name = String.format("HR-EMP-%05d", Integer.parseInt(ref));
+                } catch (NumberFormatException e) {
+                    System.err
+                            .println("❌ Erreur à la ligne " + lineNumber + " : référence invalide (« " + ref + " »).");
+                    return;
+                }
 
                 Map<String, String> jsonMap = new LinkedHashMap<>();
                 jsonMap.put("name", name);
@@ -109,7 +122,7 @@ public class ImportService {
             }
 
         } catch (Exception e) {
-            System.err.println("Erreur lors du traitement du fichier : " + e.getMessage());
+            System.err.println("❌ Erreur lors du traitement du fichier : " + e.getMessage());
         }
     }
 
@@ -165,77 +178,96 @@ public class ImportService {
 
             String line;
             boolean isFirstLine = true;
+            int lineNumber = 0;
 
             String salaryStructureName = null;
-            List<Map<String, Object>> earnings = new ArrayList<>();
-            List<Map<String, Object>> deductions = new ArrayList<>();
+            List<String[]> lines = new ArrayList<>();
 
             Map<String, String> composantVersAbbr = new HashMap<>();
 
             while ((line = reader.readLine()) != null) {
+                lineNumber++;
+
                 if (isFirstLine) {
                     isFirstLine = false;
                     continue;
                 }
 
                 String[] parts = line.split(",", -1);
-
                 if (parts.length < 6) {
-                    System.err.println("Ligne ignorée (format invalide) : " + line);
+                    System.err.println(
+                            "❌ Ligne " + lineNumber + " ignorée (format invalide - colonnes manquantes) : " + line);
                     continue;
                 }
 
                 String structure = parts[0].trim();
                 String component = parts[1].trim();
                 String abbr = parts[2].trim();
-                String type = parts[3].trim().toLowerCase();
-                String valeur = parts[4].trim(); // ➤ contient déjà la formule
-                String remarque = parts[5].trim();
+                String type = parts[3].trim();
+                String valeur = parts[4].trim();
+                String vide6 = parts[5].trim(); // colonne supplémentaire si nécessaire
 
+                // Vérification de champs vides
                 if (structure.isEmpty() || component.isEmpty() || abbr.isEmpty() || type.isEmpty()
                         || valeur.isEmpty()) {
-                    System.err.println("Ligne ignorée (champ vide) : " + line);
+                    System.err.println("❌ Ligne " + lineNumber + " ignorée (champs vides) : " + line);
                     continue;
                 }
+
+                lines.add(parts);
 
                 if (salaryStructureName == null) {
                     salaryStructureName = structure;
                 }
 
                 composantVersAbbr.put(component.toLowerCase(), abbr);
+            }
 
-                // ➤ Nettoyage de la formule (valeur), remplacement des composants par abbr
-                String rawFormula = valeur.toLowerCase();
-                String cleanedFormula = rawFormula;
+            List<Map<String, Object>> earnings = new ArrayList<>();
+            List<Map<String, Object>> deductions = new ArrayList<>();
 
+            lineNumber = 1; // Réinitialiser pour le second passage
+            for (String[] parts : lines) {
+                lineNumber++;
+
+                String component = parts[1].trim();
+                String abbr = parts[2].trim();
+                String type = parts[3].trim().toLowerCase();
+                String valeur = parts[4].trim();
+
+                // Remplacement des noms dans la formule
+                String cleanedFormula = valeur;
                 for (Map.Entry<String, String> entry : composantVersAbbr.entrySet()) {
-                    cleanedFormula = cleanedFormula.replace(entry.getKey(), entry.getValue());
+                    cleanedFormula = cleanedFormula.replaceAll("(?i)\\b" + Pattern.quote(entry.getKey()) + "\\b",
+                            entry.getValue());
+                    cleanedFormula = cleanedFormula.replaceAll("(?i)\\b" + Pattern.quote(entry.getValue()) + "\\b",
+                            entry.getValue());
                 }
 
-                // ➤ Remplacer SB (salaire de base) par "base"
-                cleanedFormula = cleanedFormula.replaceAll("(?i)sb", "base");
+                // Remplacer "SB" par "base"
+                cleanedFormula = cleanedFormula.replaceAll("(?i)\\bSB\\b", "base");
 
-                // ➤ Nettoyage final : supprimer les caractères indésirables
+                // Nettoyage final
                 cleanedFormula = cleanedFormula.replaceAll("[^a-zA-Z0-9_+\\-*/.() ]", "");
 
                 Map<String, Object> item = new LinkedHashMap<>();
                 item.put("salary_component", component);
                 item.put("abbr", abbr);
-                // item.put("amount", 0); // Valeur fixe, ajustable si besoin
                 item.put("formula", cleanedFormula);
+                item.put("amount_based_on_formula", true); // Par défaut toujours true
 
                 if (type.equals("earning")) {
                     earnings.add(item);
                 } else if (type.equals("deduction")) {
                     deductions.add(item);
                 } else {
-                    System.err.println("Type inconnu : " + type);
+                    System.err.println("❌ Ligne " + lineNumber + " ignorée (type inconnu) : " + type);
                 }
             }
 
             Map<String, Object> structureJson = new LinkedHashMap<>();
             structureJson.put("name", salaryStructureName);
-            structureJson.put("company", "My Company"); // À adapter si besoin
+            structureJson.put("company", "My Company");
             structureJson.put("earnings", earnings);
             structureJson.put("deductions", deductions);
             structureJson.put("docstatus", 1);
@@ -245,7 +277,7 @@ public class ImportService {
 
             System.out.println("✅ JSON généré :\n" + jsonData);
 
-            // sendSalaryStructureToAPI(jsonData, session);
+            sendSalaryStructureToAPI(jsonData, session);
 
         } catch (Exception e) {
             System.err.println("❌ Erreur lors du traitement du fichier : " + e.getMessage());
@@ -261,7 +293,6 @@ public class ImportService {
         }
 
         try {
-            // Évite le bug 417
             System.setProperty("sun.net.http.retryPost", "false");
 
             URL url = new URL("http://erpnext.localhost:8000/api/resource/Salary%20Structure");
@@ -306,50 +337,59 @@ public class ImportService {
             while ((line = reader.readLine()) != null) {
                 if (isFirstLine) {
                     isFirstLine = false;
-                    continue; // sauter l'en-tête
+                    continue; // Ignorer l'en-tête
                 }
 
                 String[] parts = line.split(",", -1);
-
                 if (parts.length < 4) {
-                    System.err.println("Ligne ignorée (format invalide) : " + line);
+                    System.err.println("❌ Ligne ignorée (format invalide) : " + line);
                     continue;
                 }
 
-                String mois = parts[0].trim(); // Exemple : 01/04/2025
-                String employeeId = parts[1].trim(); // Exemple : 1
-                String salaireBaseStr = parts[2].trim(); // Exemple : 1500000
-                String structure = parts[3].trim(); // Exemple : gasy1
+                String mois = parts[0].trim();
+                String employeeIdStr = parts[1].trim();
+                String salaireBaseStr = parts[2].trim();
+                String structure = parts[3].trim();
 
-                if (mois.isEmpty() || employeeId.isEmpty() || salaireBaseStr.isEmpty() || structure.isEmpty()) {
-                    System.err.println("Ligne ignorée (champ vide) : " + line);
+                if (mois.isEmpty() || employeeIdStr.isEmpty() || salaireBaseStr.isEmpty() || structure.isEmpty()) {
+                    System.err.println("❌ Ligne ignorée (champ vide) : " + line);
                     continue;
                 }
 
-                double baseSalary = Double.parseDouble(salaireBaseStr);
+                int employeeId;
+                double baseSalary;
+                try {
+                    employeeId = Integer.parseInt(employeeIdStr);
+                    baseSalary = Double.parseDouble(salaireBaseStr);
+                } catch (NumberFormatException e) {
+                    System.err.println("❌ Format invalide (employeeId ou salaire) : " + line);
+                    continue;
+                }
 
-                // Extraire le mois et l'année
+                // Traitement de la date au format MM/YYYY
                 String[] dateParts = mois.split("/");
                 if (dateParts.length != 3) {
-                    System.err.println("Format de date invalide : " + mois);
+                    System.err.println("❌ Format de date invalide (attendu JJ/MM/AAAA) : " + mois);
                     continue;
                 }
 
-                String start_date = dateParts[2] + "-" + dateParts[1] + "-01"; // ex: 2025-04-01
-                String end_date = dateParts[2] + "-" + dateParts[1] + "-30"; // simplification
+                String startDate = dateParts[2] + "-" + dateParts[1] + "-01";
+                String endDate = dateParts[2] + "-" + dateParts[1] + "-30";
 
                 Map<String, Object> slip = new LinkedHashMap<>();
-                slip.put("employee", String.format("HR-EMP-%05d", Integer.parseInt(employeeId))); // selon votre système
+                slip.put("employee", String.format("HR-EMP-%05d", employeeId));
                 slip.put("salary_structure", structure);
-                slip.put("start_date", start_date);
-                slip.put("end_date", end_date);
+                slip.put("start_date", startDate);
+                slip.put("end_date", endDate);
                 slip.put("base", baseSalary);
                 slip.put("docstatus", 1);
+
+                // Assigner la structure salariale avant ajout
+                assignSalaryStructureToEmployee(slip, session);
 
                 slips.add(slip);
             }
 
-            // Regrouper dans un seul JSON si tu veux tout envoyer d’un coup
             Map<String, Object> jsonWrapper = new HashMap<>();
             jsonWrapper.put("salary_slips", slips);
 
@@ -358,11 +398,11 @@ public class ImportService {
 
             System.out.println("✅ JSON généré :\n" + jsonData);
 
-            // ➤ Tu peux maintenant appeler sendToApi(jsonData)
             sendSalarySlipsToAPI(slips, session);
 
         } catch (Exception e) {
-            System.err.println("❌ Erreur : " + e.getMessage());
+            System.err.println("❌ Erreur lors du traitement du fichier : " + e.getMessage());
+            e.printStackTrace(); // Facultatif, utile en dev
         }
     }
 
@@ -376,24 +416,28 @@ public class ImportService {
 
         for (Map<String, Object> slip : slips) {
             try {
-                URL url = new URL("http://erpnext.localhost:8000/api/resource/Salary Slip");
+                URL url = new URL("http://erpnext.localhost:8000/api/resource/Salary%20Slip");
                 HttpURLConnection conn = (HttpURLConnection) url.openConnection();
                 conn.setRequestMethod("POST");
                 conn.setRequestProperty("Content-Type", "application/json");
                 conn.setRequestProperty("Cookie", "sid=" + sid);
                 conn.setDoOutput(true);
 
-                // Convertir la map slip en JSON
-                Map<String, Object> wrapper = new HashMap<>();
-                wrapper.put("employee", slip.get("employee"));
-                wrapper.put("salary_structure", slip.get("salary_structure"));
-                wrapper.put("start_date", slip.get("start_date"));
-                wrapper.put("end_date", slip.get("end_date"));
-                wrapper.put("base", slip.get("base"));
-                wrapper.put("docstatus", slip.get("docstatus"));
+                String employeeId = (String) slip.get("employee"); // ex: "HR-EMP-00011"
+                // Construire naming_series pour laisser ERPNext générer le suffixe automatique
+                String namingSeries = "Sal Slip/" + employeeId + "/";
+
+                // Construire la charge utile sans 'base'
+                Map<String, Object> payload = new HashMap<>();
+                payload.put("employee", employeeId);
+                payload.put("salary_structure", slip.get("salary_structure"));
+                payload.put("start_date", slip.get("start_date"));
+                payload.put("end_date", slip.get("end_date"));
+                payload.put("docstatus", slip.get("docstatus"));
+                payload.put("naming_series", namingSeries);
 
                 ObjectMapper mapper = new ObjectMapper();
-                String json = mapper.writeValueAsString(wrapper);
+                String json = mapper.writeValueAsString(payload);
 
                 try (OutputStream os = conn.getOutputStream()) {
                     byte[] input = json.getBytes(StandardCharsets.UTF_8);
@@ -402,9 +446,9 @@ public class ImportService {
 
                 int responseCode = conn.getResponseCode();
                 if (responseCode == 200 || responseCode == 201) {
-                    System.out.println("✅ Slip envoyé : " + slip.get("employee"));
+                    System.out.println("✅ Slip envoyé : " + employeeId);
                 } else {
-                    System.err.println("❌ Échec (code " + responseCode + ") pour " + slip.get("employee"));
+                    System.err.println("❌ Échec (code " + responseCode + ") pour " + employeeId);
                     try (BufferedReader br = new BufferedReader(new InputStreamReader(conn.getErrorStream()))) {
                         String line;
                         while ((line = br.readLine()) != null) {
@@ -416,6 +460,48 @@ public class ImportService {
             } catch (Exception e) {
                 System.err.println("❌ Erreur API : " + e.getMessage());
             }
+        }
+    }
+
+    private void assignSalaryStructureToEmployee(Map<String, Object> slip, HttpSession session) {
+        String sid = (String) session.getAttribute("sid");
+
+        if (sid == null || sid.isEmpty()) {
+            System.err.println("Erreur : aucune session 'sid' trouvée.");
+            return;
+        }
+
+        try {
+            URL url = new URL("http://erpnext.localhost:8000/api/resource/Salary%20Structure%20Assignment");
+            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+            conn.setRequestMethod("POST");
+            conn.setRequestProperty("Content-Type", "application/json");
+            conn.setRequestProperty("Cookie", "sid=" + sid);
+            conn.setDoOutput(true);
+
+            Map<String, Object> payload = new HashMap<>();
+            payload.put("employee", slip.get("employee"));
+            payload.put("salary_structure", slip.get("salary_structure"));
+            payload.put("from_date", slip.get("start_date"));
+            payload.put("base", slip.get("base"));
+            payload.put("docstatus", 1); // <-- Ajout ici pour soumettre directement
+
+            ObjectMapper mapper = new ObjectMapper();
+            String json = mapper.writeValueAsString(payload);
+
+            try (OutputStream os = conn.getOutputStream()) {
+                os.write(json.getBytes(StandardCharsets.UTF_8));
+            }
+
+            int responseCode = conn.getResponseCode();
+            if (responseCode == 200 || responseCode == 201) {
+                System.out.println("✅ Assignation et soumission réussies pour " + slip.get("employee"));
+            } else {
+                System.err.println("❌ Échec assignation (code " + responseCode + ") pour " + slip.get("employee"));
+            }
+
+        } catch (Exception e) {
+            System.err.println("❌ Erreur assignation : " + e.getMessage());
         }
     }
 

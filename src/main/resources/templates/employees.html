@@ -21,12 +21,13 @@
                         <th>Date d'embauche</th>
                         <th>Genre</th>
                         <th>Entreprise</th>
+                        <th>Status</th>
                         <th>Action</th>
                     </tr>
                 </thead>
                 <tbody>
                     <tr th:each="employee : ${employees}">
-                        <td th:text="${employee.name}">Re</td>
+                        <td th:text="${employee.name}">Ref</td>
                         <td th:text="${employee.last_name}">Nom</td>
                         <td th:text="${employee.first_name}">Prénom</td>
                         <td th:text="${employee.middle_name}">Deuxième prénom</td>
@@ -34,6 +35,10 @@
                         <td th:text="${employee.date_of_joining}">Date Embauche</td>
                         <td th:text="${employee.gender}">Genre</td>
                         <td th:text="${employee.company}">Entreprise</td>
+                        <td th:text="${employee.status}"
+                            th:classappend="${employee.status == 'Active'} ? 'status-active' : 'status-inactive'">
+                            Status
+                        </td>
                         <td>
                             <a th:href="@{/employees/delete/{name}(name=${employee.name})}"
                                 class="btn btn-danger btn-sm" title="Supprimer"

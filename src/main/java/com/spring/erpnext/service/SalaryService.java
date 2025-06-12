@@ -2,7 +2,9 @@ package com.spring.erpnext.service;
 
 import com.spring.erpnext.model.Deduction;
 import com.spring.erpnext.model.Earning;
+import com.spring.erpnext.model.Employee;
 import com.spring.erpnext.model.SalarySlip;
+import com.spring.erpnext.model.SalaryStructureAssignment;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
@@ -12,7 +14,12 @@ import org.springframework.web.util.UriUtils;
 
 import jakarta.servlet.http.HttpSession;
 
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.io.OutputStream;
+import java.net.HttpURLConnection;
 import java.net.URI;
+import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.time.YearMonth;
 import java.util.ArrayList;
@@ -472,4 +479,230 @@ public class SalaryService {
         return deductionsByComponent;
     }
 
+    public void deleteAllAssignments(HttpSession session) {
+        String sid = (String) session.getAttribute("sid");
+
+        if (sid == null || sid.isEmpty()) {
+            throw new IllegalStateException("Aucune session 'sid' trouvée.");
+        }
+
+        // 1. Récupérer toutes les assignations avec leur docstatus
+        String urlGet = "http://erpnext.localhost:8000/api/resource/Salary Structure Assignment?fields=[\"name\", \"docstatus\"]&limit_page_length=1000";
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.set("Cookie", "sid=" + sid);
+        HttpEntity<String> entity = new HttpEntity<>(headers);
+
+        ResponseEntity<AssignmentApiResponse> response = restTemplate.exchange(
+                urlGet,
+                HttpMethod.GET,
+                entity,
+                AssignmentApiResponse.class);
+
+        if (response.getStatusCode() != HttpStatus.OK || response.getBody() == null) {
+            throw new RuntimeException("Erreur lors de la récupération des assignations.");
+        }
+
+        List<SalaryStructureAssignment> assignments = response.getBody().getData();
+
+        for (SalaryStructureAssignment assignment : assignments) {
+            String name = assignment.getName();
+
+            // Étape 2 : Annuler l’assignation (docstatus = 2)
+            String cancelUrl = "http://erpnext.localhost:8000/api/resource/Salary Structure Assignment/" + name;
+            Map<String, Object> cancelPayload = new HashMap<>();
+            cancelPayload.put("docstatus", 2);
+
+            HttpHeaders cancelHeaders = new HttpHeaders();
+            cancelHeaders.setContentType(MediaType.APPLICATION_JSON);
+            cancelHeaders.set("Cookie", "sid=" + sid);
+            HttpEntity<Map<String, Object>> cancelEntity = new HttpEntity<>(cancelPayload, cancelHeaders);
+
+            try {
+                restTemplate.exchange(
+                        cancelUrl,
+                        HttpMethod.PUT,
+                        cancelEntity,
+                        String.class);
+            } catch (Exception e) {
+                System.out.println("Erreur lors de l'annulation de l'assignation : " + name);
+                e.printStackTrace();
+                continue; // Passer au suivant si annulation échoue
+            }
+
+            // Étape 3 : Supprimer
+            try {
+                HttpHeaders deleteHeaders = new HttpHeaders();
+                deleteHeaders.set("Cookie", "sid=" + sid);
+                HttpEntity<String> deleteEntity = new HttpEntity<>(deleteHeaders);
+
+                ResponseEntity<String> deleteResponse = restTemplate.exchange(
+                        cancelUrl,
+                        HttpMethod.DELETE,
+                        deleteEntity,
+                        String.class);
+
+                if (deleteResponse.getStatusCode() != HttpStatus.OK) {
+                    System.out.println("Erreur suppression assignation : " + name);
+                }
+            } catch (Exception e) {
+                System.out.println("Exception suppression assignation : " + name);
+                e.printStackTrace();
+            }
+        }
+    }
+
+    // Classe interne pour la réponse de l'API
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class AssignmentApiResponse {
+        private List<SalaryStructureAssignment> data;
+
+        public List<SalaryStructureAssignment> getData() {
+            return data;
+        }
+
+        public void setData(List<SalaryStructureAssignment> data) {
+            this.data = data;
+        }
+    }
+
+    public void deleteAllSalarySlips(HttpSession session) {
+        String sid = (String) session.getAttribute("sid");
+
+        if (sid == null || sid.isEmpty()) {
+            throw new IllegalStateException("Aucune session 'sid' trouvée.");
+        }
+
+        // 1. Récupérer tous les SalarySlip (champ 'name')
+        String urlGet = "http://erpnext.localhost:8000/api/resource/Salary Slip?fields=[\"name\"]&limit_page_length=1000";
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.set("Cookie", "sid=" + sid);
+        HttpEntity<String> entity = new HttpEntity<>(headers);
+
+        ResponseEntity<SalaryApiResponse> response = restTemplate.exchange(
+                urlGet,
+                HttpMethod.GET,
+                entity,
+                SalaryApiResponse.class);
+
+        if (response.getStatusCode() != HttpStatus.OK || response.getBody() == null) {
+            throw new RuntimeException("Erreur lors de la récupération des Salary Slips.");
+        }
+
+        List<SalarySlip> slips = response.getBody().getData();
+
+        for (SalarySlip slip : slips) {
+            String slipName = slip.getName();
+
+            // 2. Annuler immédiatement (on suppose docstatus = 1)
+            String cancelUrl = "http://erpnext.localhost:8000/api/resource/Salary Slip/" + slipName;
+
+            Map<String, Object> cancelPayload = new HashMap<>();
+            cancelPayload.put("docstatus", 2); // 2 = Canceled
+
+            HttpHeaders cancelHeaders = new HttpHeaders();
+            cancelHeaders.setContentType(MediaType.APPLICATION_JSON);
+            cancelHeaders.set("Cookie", "sid=" + sid);
+
+            HttpEntity<Map<String, Object>> cancelEntity = new HttpEntity<>(cancelPayload, cancelHeaders);
+
+            try {
+                restTemplate.exchange(
+                        cancelUrl,
+                        HttpMethod.PUT,
+                        cancelEntity,
+                        String.class);
+            } catch (Exception e) {
+                System.out.println("Erreur lors de l'annulation de Salary Slip : " + slipName);
+                e.printStackTrace();
+                continue;
+            }
+
+            // 3. Supprimer
+            String deleteUrl = "http://erpnext.localhost:8000/api/resource/Salary Slip/" + slipName;
+            try {
+                HttpHeaders deleteHeaders = new HttpHeaders();
+                deleteHeaders.set("Cookie", "sid=" + sid);
+                HttpEntity<String> deleteEntity = new HttpEntity<>(deleteHeaders);
+
+                ResponseEntity<String> deleteResponse = restTemplate.exchange(
+                        deleteUrl,
+                        HttpMethod.DELETE,
+                        deleteEntity,
+                        String.class);
+
+                if (deleteResponse.getStatusCode() != HttpStatus.OK) {
+                    System.out.println("Erreur suppression Salary Slip : " + slipName);
+                }
+            } catch (Exception e) {
+                System.out.println("Exception suppression Salary Slip : " + slipName);
+                e.printStackTrace();
+            }
+        }
+    }
+
+    public void deleteAllEmployees(HttpSession session) {
+        String sid = (String) session.getAttribute("sid");
+
+        if (sid == null || sid.isEmpty()) {
+            throw new IllegalStateException("Aucune session 'sid' trouvée.");
+        }
+
+        // 1. Récupérer tous les employés (seulement le champ 'name')
+        String urlGet = "http://erpnext.localhost:8000/api/resource/Employee?fields=[\"name\"]&limit_page_length=1000";
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.set("Cookie", "sid=" + sid);
+        HttpEntity<String> entity = new HttpEntity<>(headers);
+
+        ResponseEntity<EmployeeApiResponse> response = restTemplate.exchange(
+                urlGet,
+                HttpMethod.GET,
+                entity,
+                EmployeeApiResponse.class);
+
+        if (response.getStatusCode() != HttpStatus.OK || response.getBody() == null) {
+            throw new RuntimeException("Erreur lors de la récupération des employés.");
+        }
+
+        List<Employee> employees = response.getBody().getData();
+
+        // 2. Supprimer tous les employés un par un
+        for (Employee employee : employees) {
+            String deleteUrl = "http://erpnext.localhost:8000/api/resource/Employee/" + employee.getName();
+            try {
+                HttpHeaders deleteHeaders = new HttpHeaders();
+                deleteHeaders.set("Cookie", "sid=" + sid);
+                HttpEntity<String> deleteEntity = new HttpEntity<>(deleteHeaders);
+
+                ResponseEntity<String> deleteResponse = restTemplate.exchange(
+                        deleteUrl,
+                        HttpMethod.DELETE,
+                        deleteEntity,
+                        String.class);
+
+                if (deleteResponse.getStatusCode() != HttpStatus.OK) {
+                    System.out.println("Erreur suppression employé : " + employee.getName());
+                }
+            } catch (Exception e) {
+                System.out.println("Exception suppression employé : " + employee.getName());
+                e.printStackTrace();
+            }
+        }
+    }
+
+    // Classe interne pour la réponse de l'API
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class EmployeeApiResponse {
+        private List<Employee> data;
+
+        public List<Employee> getData() {
+            return data;
+        }
+
+        public void setData(List<Employee> data) {
+            this.data = data;
+        }
+    }
 }

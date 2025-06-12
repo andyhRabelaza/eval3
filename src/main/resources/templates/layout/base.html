@@ -13,6 +13,7 @@
     <link rel="stylesheet" th:href="@{/css/bouton.css}" />
     <link rel="stylesheet" th:href="@{/css/modal.css}" />
     <link rel="stylesheet" th:href="@{/css/chart.css}" />
+    <link rel="stylesheet" th:href="@{/css/status.css}" />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 
@@ -50,9 +51,9 @@
                 <li class="nav-item">
                     <a class="nav-link" th:href="@{/index}">Accueil</a>
                 </li>
-                <li class="nav-item">
+                <!-- <li class="nav-item">
                     <a class="nav-link" th:href="@{/import}">Import</a>
-                </li>
+                </li> -->
                 <li class="nav-item">
                     <a class="nav-link" th:href="@{/employees}">Liste employe</a>
                 </li>
@@ -69,7 +70,10 @@
                     <a class="nav-link" th:href="@{/salary-graphe}">Graphes</a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" th:href="@{/employees-add}">I.Employee</a>
+                    <a class="nav-link" th:href="@{/salary-add-salary}">Ajouter Salaire</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" th:href="@{/salary-update}">Modifier Salaire</a>
                 </li>
             </ul>
         </div>
@@ -84,6 +88,7 @@
     <script th:src="@{/JS/salary_ref.js}"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="/JS/salary-charts.js"></script>    
+    <script src="/JS/salary-delete.js"></script>    
 
 
 </body>

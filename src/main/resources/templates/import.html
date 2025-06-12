@@ -33,6 +33,24 @@
                 </ul>
             </div>
 
+            <button id="btnDeleteEmployees" class="btn-delete" type="button">Supprimer tous les données</button>
+            <script th:inline="javascript">
+    const deleteUrl = /*[[@{/deleteAllEmployees}]]*/ '/deleteAllEmployees';
+    document.getElementById('btnDeleteEmployees').addEventListener('click', function() {
+        if(confirm("Êtes-vous sûr de vouloir supprimer tous les employés ?")) {
+            fetch(deleteUrl, { method: 'POST' })
+            .then(response => {
+                if(response.ok) {
+                    alert('Tous les donnee ont été supprimés.');
+                } else {
+                    alert('Erreur lors de la suppression.');
+                }
+            })
+            .catch(() => alert('Erreur réseau lors de la suppression.'));
+        }
+    });
+</script>
+
         </div>
     </div>
 </div>

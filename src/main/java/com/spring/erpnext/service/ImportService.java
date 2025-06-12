@@ -1,12 +1,21 @@
 package com.spring.erpnext.service;
 
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.client.RestTemplate;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.OutputStream;
 
 import jakarta.servlet.http.HttpSession;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
@@ -161,15 +170,24 @@ public class ImportService {
     }
 
     private String formatDate(String inputDate) {
-        try {
-            DateTimeFormatter inputFormatter = DateTimeFormatter.ofPattern("dd/MM/yyyy");
-            DateTimeFormatter outputFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
-            LocalDate date = LocalDate.parse(inputDate, inputFormatter);
-            return outputFormatter.format(date);
-        } catch (DateTimeParseException e) {
-            System.err.println("Format de date invalide : " + inputDate);
-            return ""; // ou tu peux lever une exception selon ton besoin
+        String[] possibleFormats = {
+                "dd/MM/yyyy",
+                "dd-MM-yyyy",
+                "yyyy-MM-dd" // au cas où la date est déjà bien formatée
+        };
+
+        for (String format : possibleFormats) {
+            try {
+                DateTimeFormatter inputFormatter = DateTimeFormatter.ofPattern(format);
+                LocalDate date = LocalDate.parse(inputDate, inputFormatter);
+                return date.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+            } catch (DateTimeParseException ignored) {
+                // On essaie le format suivant
+            }
         }
+
+        System.err.println("❌ Format de date invalide : " + inputDate);
+        return ""; // ou lever une exception si nécessaire
     }
 
     public void processFile2(MultipartFile file, HttpSession session) {
@@ -180,10 +198,7 @@ public class ImportService {
             boolean isFirstLine = true;
             int lineNumber = 0;
 
-            String salaryStructureName = null;
-            List<String[]> lines = new ArrayList<>();
-
-            Map<String, String> composantVersAbbr = new HashMap<>();
+            Map<String, List<String[]>> groupedLines = new LinkedHashMap<>();
 
             while ((line = reader.readLine()) != null) {
                 lineNumber++;
@@ -195,92 +210,167 @@ public class ImportService {
 
                 String[] parts = line.split(",", -1);
                 if (parts.length < 6) {
-                    System.err.println(
-                            "❌ Ligne " + lineNumber + " ignorée (format invalide - colonnes manquantes) : " + line);
+                    System.err.println("❌ Ligne " + lineNumber + " ignorée (colonnes manquantes) : " + line);
                     continue;
                 }
 
                 String structure = parts[0].trim();
                 String component = parts[1].trim();
                 String abbr = parts[2].trim();
-                String type = parts[3].trim();
+                String typeRaw = parts[3].trim();
                 String valeur = parts[4].trim();
-                String vide6 = parts[5].trim(); // colonne supplémentaire si nécessaire
 
-                // Vérification de champs vides
-                if (structure.isEmpty() || component.isEmpty() || abbr.isEmpty() || type.isEmpty()
-                        || valeur.isEmpty()) {
+                if (structure.isEmpty() || component.isEmpty() || abbr.isEmpty()
+                        || typeRaw.isEmpty() || valeur.isEmpty()) {
                     System.err.println("❌ Ligne " + lineNumber + " ignorée (champs vides) : " + line);
                     continue;
                 }
 
-                lines.add(parts);
-
-                if (salaryStructureName == null) {
-                    salaryStructureName = structure;
-                }
-
-                composantVersAbbr.put(component.toLowerCase(), abbr);
+                groupedLines.computeIfAbsent(structure, k -> new ArrayList<>()).add(parts);
             }
 
-            List<Map<String, Object>> earnings = new ArrayList<>();
-            List<Map<String, Object>> deductions = new ArrayList<>();
-
-            lineNumber = 1; // Réinitialiser pour le second passage
-            for (String[] parts : lines) {
-                lineNumber++;
-
-                String component = parts[1].trim();
-                String abbr = parts[2].trim();
-                String type = parts[3].trim().toLowerCase();
-                String valeur = parts[4].trim();
-
-                // Remplacement des noms dans la formule
-                String cleanedFormula = valeur;
-                for (Map.Entry<String, String> entry : composantVersAbbr.entrySet()) {
-                    cleanedFormula = cleanedFormula.replaceAll("(?i)\\b" + Pattern.quote(entry.getKey()) + "\\b",
-                            entry.getValue());
-                    cleanedFormula = cleanedFormula.replaceAll("(?i)\\b" + Pattern.quote(entry.getValue()) + "\\b",
-                            entry.getValue());
-                }
-
-                // Remplacer "SB" par "base"
-                cleanedFormula = cleanedFormula.replaceAll("(?i)\\bSB\\b", "base");
-
-                // Nettoyage final
-                cleanedFormula = cleanedFormula.replaceAll("[^a-zA-Z0-9_+\\-*/.() ]", "");
-
-                Map<String, Object> item = new LinkedHashMap<>();
-                item.put("salary_component", component);
-                item.put("abbr", abbr);
-                item.put("formula", cleanedFormula);
-                item.put("amount_based_on_formula", true); // Par défaut toujours true
-
-                if (type.equals("earning")) {
-                    earnings.add(item);
-                } else if (type.equals("deduction")) {
-                    deductions.add(item);
+            java.util.function.Function<String, String> normalizeType = (rawType) -> {
+                if (rawType.equalsIgnoreCase("earning")) {
+                    return "Earning";
+                } else if (rawType.equalsIgnoreCase("deduction")) {
+                    return "Deduction";
                 } else {
-                    System.err.println("❌ Ligne " + lineNumber + " ignorée (type inconnu) : " + type);
+                    return rawType;
                 }
+            };
+
+            for (Map.Entry<String, List<String[]>> entry : groupedLines.entrySet()) {
+                String salaryStructureName = entry.getKey();
+                List<String[]> lines = entry.getValue();
+
+                // Construire map componentName (en minuscule) -> abbr
+                Map<String, String> composantVersAbbr = new HashMap<>();
+                for (String[] parts : lines) {
+                    String component = parts[1].trim();
+                    String abbr = parts[2].trim();
+                    composantVersAbbr.put(component.toLowerCase(), abbr);
+                }
+
+                List<Map<String, Object>> earnings = new ArrayList<>();
+                List<Map<String, Object>> deductions = new ArrayList<>();
+
+                for (String[] parts : lines) {
+                    String component = parts[1].trim();
+                    String abbr = parts[2].trim();
+                    String type = normalizeType.apply(parts[3].trim());
+                    String valeur = parts[4].trim();
+
+                    processComponent(component, abbr, type, valeur, session);
+
+                    // Remplacer les noms de composants dans la formule par leurs abbréviations
+                    String cleanedFormula = valeur;
+                    for (Map.Entry<String, String> e : composantVersAbbr.entrySet()) {
+                        cleanedFormula = cleanedFormula.replaceAll("(?i)\\b" + Pattern.quote(e.getKey()) + "\\b",
+                                e.getValue());
+                        cleanedFormula = cleanedFormula.replaceAll("(?i)\\b" + Pattern.quote(e.getValue()) + "\\b",
+                                e.getValue());
+                    }
+
+                    cleanedFormula = cleanedFormula.replaceAll("(?i)\\bSB\\b", "base");
+                    cleanedFormula = cleanedFormula.replaceAll("[^a-zA-Z0-9_+\\-*/.() ]", "");
+
+                    Map<String, Object> item = new LinkedHashMap<>();
+                    item.put("salary_component", component);
+                    item.put("abbr", abbr);
+                    item.put("formula", cleanedFormula);
+                    item.put("amount_based_on_formula", true);
+
+                    if ("Earning".equals(type)) {
+                        earnings.add(item);
+                    } else if ("Deduction".equals(type)) {
+                        deductions.add(item);
+                    } else {
+                        System.err.println("❌ Ligne ignorée (type inconnu) : " + type);
+                    }
+                }
+
+                Map<String, Object> structureJson = new LinkedHashMap<>();
+                structureJson.put("name", salaryStructureName);
+                structureJson.put("company", "My Company");
+                structureJson.put("earnings", earnings);
+                structureJson.put("deductions", deductions);
+                structureJson.put("docstatus", 1);
+
+                ObjectMapper mapper = new ObjectMapper();
+                String jsonData = mapper.writerWithDefaultPrettyPrinter().writeValueAsString(structureJson);
+
+                System.out.println("✅ JSON généré pour [" + salaryStructureName + "] :\n" + jsonData);
+
+                sendSalaryStructureToAPI(jsonData, session);
             }
-
-            Map<String, Object> structureJson = new LinkedHashMap<>();
-            structureJson.put("name", salaryStructureName);
-            structureJson.put("company", "My Company");
-            structureJson.put("earnings", earnings);
-            structureJson.put("deductions", deductions);
-            structureJson.put("docstatus", 1);
-
-            ObjectMapper mapper = new ObjectMapper();
-            String jsonData = mapper.writerWithDefaultPrettyPrinter().writeValueAsString(structureJson);
-
-            System.out.println("✅ JSON généré :\n" + jsonData);
-
-            sendSalaryStructureToAPI(jsonData, session);
 
         } catch (Exception e) {
             System.err.println("❌ Erreur lors du traitement du fichier : " + e.getMessage());
+        }
+    }
+
+    private void processComponent(String name, String abbr, String type, String formula, HttpSession session) {
+        try {
+            RestTemplate restTemplate = new RestTemplate();
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+
+            String sid = (String) session.getAttribute("sid");
+            if (sid != null) {
+                headers.add("Cookie", "sid=" + sid);
+            } else {
+                System.err.println("⚠️ SID introuvable dans la session.");
+                return;
+            }
+
+            String encodedName = URLEncoder.encode(name, "UTF-8").replace("+", "%20");
+
+            String checkUrl = "http://erpnext.localhost:8000/api/resource/Salary Component/" + encodedName;
+            HttpEntity<String> checkEntity = new HttpEntity<>(headers);
+
+            try {
+                ResponseEntity<String> checkResponse = restTemplate.exchange(
+                        checkUrl,
+                        HttpMethod.GET,
+                        checkEntity,
+                        String.class);
+
+                if (checkResponse.getStatusCode().is2xxSuccessful()) {
+                    System.out.println("ℹ️ Le composant '" + name + "' existe déjà. Pas de création.");
+                    return;
+                }
+            } catch (HttpClientErrorException.NotFound e) {
+                System.out.println("🔍 Le composant '" + name + "' n'existe pas encore. Création en cours...");
+            } catch (Exception e) {
+                System.err.println("❌ Erreur lors de la vérification de l'existence du composant '" + name + "' : "
+                        + e.getMessage());
+                return;
+            }
+
+            Map<String, Object> componentData = new LinkedHashMap<>();
+            componentData.put("salary_component", name);
+            componentData.put("abbr", abbr);
+            componentData.put("type", type);
+            componentData.put("formula", formula);
+            componentData.put("amount_based_on_formula", 1);
+            componentData.put("depends_on_payment_days", 0);
+
+            HttpEntity<Map<String, Object>> createEntity = new HttpEntity<>(componentData, headers);
+
+            ResponseEntity<String> createResponse = restTemplate.postForEntity(
+                    "http://erpnext.localhost:8000/api/resource/Salary Component",
+                    createEntity,
+                    String.class);
+
+            if (createResponse.getStatusCode().is2xxSuccessful()) {
+                System.out.println("✅ Composant '" + name + "' créé avec succès !");
+            } else {
+                System.err.println("❌ Échec de création du composant '" + name + "' : " + createResponse.getBody());
+            }
+
+        } catch (Exception e) {
+            System.err.println("❌ Exception lors du traitement du composant '" + name + "' : " + e.getMessage());
         }
     }
 
@@ -366,25 +456,24 @@ public class ImportService {
                     continue;
                 }
 
-                // Traitement de la date au format MM/YYYY
-                String[] dateParts = mois.split("/");
-                if (dateParts.length != 3) {
-                    System.err.println("❌ Format de date invalide (attendu JJ/MM/AAAA) : " + mois);
+                // ✅ Traitement de la date avec format flexible
+                LocalDate dateParsed = parseFlexibleDate(mois);
+                if (dateParsed == null) {
+                    System.err.println("❌ Format de date invalide : " + mois);
                     continue;
                 }
 
-                String startDate = dateParts[2] + "-" + dateParts[1] + "-01";
-                String endDate = dateParts[2] + "-" + dateParts[1] + "-30";
+                LocalDate startDate = dateParsed.withDayOfMonth(1);
+                LocalDate endDate = dateParsed.withDayOfMonth(dateParsed.lengthOfMonth());
 
                 Map<String, Object> slip = new LinkedHashMap<>();
                 slip.put("employee", String.format("HR-EMP-%05d", employeeId));
                 slip.put("salary_structure", structure);
-                slip.put("start_date", startDate);
-                slip.put("end_date", endDate);
+                slip.put("start_date", startDate.toString()); // yyyy-MM-dd
+                slip.put("end_date", endDate.toString()); // yyyy-MM-dd
                 slip.put("base", baseSalary);
                 slip.put("docstatus", 1);
 
-                // Assigner la structure salariale avant ajout
                 assignSalaryStructureToEmployee(slip, session);
 
                 slips.add(slip);
@@ -402,8 +491,22 @@ public class ImportService {
 
         } catch (Exception e) {
             System.err.println("❌ Erreur lors du traitement du fichier : " + e.getMessage());
-            e.printStackTrace(); // Facultatif, utile en dev
+            e.printStackTrace();
         }
+    }
+
+    private LocalDate parseFlexibleDate(String inputDate) {
+        String[] formats = { "dd/MM/yyyy", "dd-MM-yyyy", "yyyy-MM-dd" };
+
+        for (String pattern : formats) {
+            try {
+                DateTimeFormatter formatter = DateTimeFormatter.ofPattern(pattern);
+                return LocalDate.parse(inputDate, formatter);
+            } catch (DateTimeParseException ignored) {
+            }
+        }
+
+        return null; // Aucun format valide
     }
 
     private void sendSalarySlipsToAPI(List<Map<String, Object>> slips, HttpSession session) {

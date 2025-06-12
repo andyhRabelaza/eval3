@@ -15,6 +15,9 @@ public class Employee {
     private String gender; // 🔹 Genre
     private String company; // 🔹 Entreprise
 
+    // ✅ Nouveau champ ajouté
+    private String status;
+
     // --- Getters & Setters existants ---
 
     public String getName() {
@@ -81,5 +84,14 @@ public class Employee {
 
     public void setCompany(String company) {
         this.company = company;
+    }
+
+    // ✅ Getters & Setters pour status
+    public String getStatus() {
+        return status;
+    }
+
+    public void setStatus(String status) {
+        this.status = status;
     }
 }

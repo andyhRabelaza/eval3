@@ -30,11 +30,10 @@ public class EmployeeService {
         }
 
         String url = "http://erpnext.localhost:8000/api/resource/Employee" +
-                "?fields=[\"name\",\"last_name\",\"middle_name\",\"first_name\",\"date_of_birth\",\"date_of_joining\",\"gender\",\"company\"]"
+                "?fields=[\"name\",\"last_name\",\"middle_name\",\"first_name\",\"date_of_birth\",\"date_of_joining\",\"gender\",\"company\",\"status\"]"
                 +
                 "&limit_page_length=1000";
 
-        // Prépare les headers avec le cookie 'sid'
         HttpHeaders headers = new HttpHeaders();
         headers.set("Cookie", "sid=" + sid);
         HttpEntity<String> entity = new HttpEntity<>(headers);
@@ -52,7 +51,35 @@ public class EmployeeService {
         }
     }
 
-    // Classe interne pour mapper la réponse JSON
+    public List<Employee> getAllEmployee(HttpSession session) {
+        String sid = (String) session.getAttribute("sid");
+
+        if (sid == null || sid.isEmpty()) {
+            throw new IllegalStateException("Aucune session 'sid' trouvée.");
+        }
+
+        String url = "http://erpnext.localhost:8000/api/resource/Employee" +
+                "?fields=[\"name\"]"
+                +
+                "&limit_page_length=1000";
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.set("Cookie", "sid=" + sid);
+        HttpEntity<String> entity = new HttpEntity<>(headers);
+
+        ResponseEntity<EmployeeApiResponse> response = restTemplate.exchange(
+                url,
+                HttpMethod.GET,
+                entity,
+                EmployeeApiResponse.class);
+
+        if (response.getStatusCode() == HttpStatus.OK && response.getBody() != null) {
+            return response.getBody().getData();
+        } else {
+            throw new RuntimeException("Erreur lors de la récupération des employés.");
+        }
+    }
+
     @JsonIgnoreProperties(ignoreUnknown = true)
     public static class EmployeeApiResponse {
         private List<Employee> data;
@@ -75,10 +102,8 @@ public class EmployeeService {
 
         String url = "http://erpnext.localhost:8000/api/method/frappe.client.get_count";
 
-        // Prépare le corps JSON
         String body = "{\"doctype\": \"Employee\"}";
 
-        // Prépare les headers avec le cookie 'sid'
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
         headers.set("Cookie", "sid=" + sid);
@@ -98,7 +123,6 @@ public class EmployeeService {
         }
     }
 
-    // Classe interne pour mapper la réponse JSON du compteur
     @JsonIgnoreProperties(ignoreUnknown = true)
     public static class EmployeeCountResponse {
         private int message;
@@ -121,7 +145,6 @@ public class EmployeeService {
 
         String url = "http://erpnext.localhost:8000/api/resource/Employee/" + employeeId;
 
-        // Prépare les headers avec le cookie 'sid'
         HttpHeaders headers = new HttpHeaders();
         headers.set("Cookie", "sid=" + sid);
 
@@ -152,10 +175,8 @@ public class EmployeeService {
         String url = "http://erpnext.localhost:8000/api/resource/Employee";
 
         try {
-            // Convertir l'objet Employee en JSON
             String employeeJson = objectMapper.writeValueAsString(employee);
 
-            // Préparer les headers
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
             headers.set("Cookie", "sid=" + sid);

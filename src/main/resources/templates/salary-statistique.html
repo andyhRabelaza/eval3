@@ -30,10 +30,10 @@
                 <tbody>
                     <tr th:each="entry : ${monthlyTotals}">
                         <td class="month-cell" th:text="${entry.key}">2025-01</td>
-                        <td th:text="${entry.value['brut']}">0.00</td>
-                        <td th:text="${entry.value['net']}">0.00</td>
-                        <td th:text="${entry.value['brut']}">0.00</td>
-                        <td th:text="${entry.value['deduction']}">0.00</td>
+                        <td th:text="${#numbers.formatDecimal(entry.value['brut'], 1, 'COMMA', 2, 'POINT')}">0,00</td>
+                        <td th:text="${#numbers.formatDecimal(entry.value['net'], 1, 'COMMA', 2, 'POINT')}">0,00</td>
+                        <td th:text="${#numbers.formatDecimal(entry.value['brut'], 1, 'COMMA', 2, 'POINT')}">0,00</td>
+                        <td th:text="${#numbers.formatDecimal(entry.value['deduction'], 1, 'COMMA', 2, 'POINT')}">0,00</td>
                         <td>
                             <a href="#" class="view-details-links" title="Voir détails">
                                 <i class="fas fa-eye"></i>
@@ -44,10 +44,10 @@
                 <tfoot>
                     <tr>
                         <th>Total général</th>
-                        <th th:text="${totalBrutAll}">0.00</th>
-                        <th th:text="${totalNetAll}">0.00</th>
-                        <th th:text="${totalBrutAll}">0.00</th>
-                        <th th:text="${totalDeductionAll}">0.00</th>
+                        <th th:text="${#numbers.formatDecimal(totalBrutAll, 1, 'COMMA', 2, 'POINT')}">0,00</th>
+                        <th th:text="${#numbers.formatDecimal(totalNetAll, 1, 'COMMA', 2, 'POINT')}">0,00</th>
+                        <th th:text="${#numbers.formatDecimal(totalBrutAll, 1, 'COMMA', 2, 'POINT')}">0,00</th>
+                        <th th:text="${#numbers.formatDecimal(totalDeductionAll, 1, 'COMMA', 2, 'POINT')}">0,00</th>
                         <th></th>
                     </tr>
                 </tfoot>

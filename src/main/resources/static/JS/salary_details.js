@@ -26,31 +26,25 @@ document.addEventListener('DOMContentLoaded', function () {
             const monthCell = tr.querySelector('.month-cell');
             if (!monthCell) return;
 
-            let rawMonth = monthCell.textContent.trim();
-            console.log("rawMonth =", rawMonth);
+            let rawMonthYear = monthCell.textContent.trim(); // ex: "Janvier 2024"
+            console.log("rawMonthYear =", rawMonthYear);
 
-            const yearSelect = document.querySelector('select[name="year"]');
-            let selectedYear = yearSelect ? yearSelect.value : null;
-
-            if (!selectedYear) {
-                console.log("Aucune année sélectionnée");
+            const parts = rawMonthYear.split(' ');
+            if (parts.length !== 2) {
+                console.warn("Format inattendu :", rawMonthYear);
                 return;
             }
 
-            let yearPart, monthPart;
+            const monthName = parts[0].toLowerCase(); // "janvier"
+            const year = parts[1]; // "2024"
 
-            if (rawMonth.includes('-')) {
-                let parts = rawMonth.split('-');
-                yearPart = parts[0];
-                monthPart = parts[1];
-            } else {
-                yearPart = selectedYear; // on prend l'année sélectionnée
-                monthPart = rawMonth;
+            const monthNum = moisMap[monthName];
+            if (!monthNum) {
+                console.warn("Mois non reconnu :", monthName);
+                return;
             }
 
-            let monthNum = moisMap[monthPart.toLowerCase()] || monthPart;
-
-            const finalDate = `${yearPart}-${monthNum}`;
+            const finalDate = `${year}-${monthNum}`; // ex: "2024-01"
             console.log("Date cliquée :", finalDate);
 
             window.location.href = `/salary-employe?monthYear=${finalDate}`;

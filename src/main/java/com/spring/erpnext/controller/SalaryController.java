@@ -1,28 +1,46 @@
 package com.spring.erpnext.controller;
 
+import com.spring.erpnext.model.BaseSalary;
+import com.spring.erpnext.model.Company;
+import com.spring.erpnext.model.Component;
 import com.spring.erpnext.model.Deduction;
 import com.spring.erpnext.model.Earning;
+import com.spring.erpnext.model.Employee;
 import com.spring.erpnext.model.SalarySlip;
+import com.spring.erpnext.service.BaseSalaryService;
+import com.spring.erpnext.service.CompanyService;
+import com.spring.erpnext.service.ComponentService;
+import com.spring.erpnext.service.EmployeeService;
 import com.spring.erpnext.service.SalaryService;
 
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.ModelAttribute;
+import org.springframework.web.bind.annotation.PostMapping;
 // import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.time.DateTimeException;
+import java.time.LocalDate;
 import java.time.YearMonth;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.TreeMap;
@@ -44,14 +62,25 @@ import com.itextpdf.text.pdf.PdfPCell;
 import com.itextpdf.text.pdf.PdfPTable;
 import com.itextpdf.text.pdf.PdfWriter;
 
+import java.time.YearMonth;
+
 @Controller
 public class SalaryController {
 
     private final SalaryService salaryService;
+    private final BaseSalaryService baseSalaryService;
+    private final EmployeeService employeeService;
+    private final CompanyService companyService;
+    private final ComponentService componentService;
 
     @Autowired
-    public SalaryController(SalaryService salaryService) {
+    public SalaryController(SalaryService salaryService, BaseSalaryService baseSalaryService,
+            EmployeeService employeeService, CompanyService companyService, ComponentService componentService) {
         this.salaryService = salaryService;
+        this.baseSalaryService = baseSalaryService;
+        this.employeeService = employeeService;
+        this.companyService = companyService;
+        this.componentService = componentService;
     }
 
     @GetMapping("/salary")
@@ -376,60 +405,93 @@ public class SalaryController {
 
         List<SalarySlip> salaries;
 
+        if (year == null) {
+            year = 2025;
+        }
+
         if (year != null) {
-            // Si un filtre année est appliqué
             salaries = salaryService.getSalariesByYear(session, year);
             model.addAttribute("selectedYear", year);
         } else {
-            // Sinon, on récupère tous les salaires
             salaries = salaryService.getAllSalaries(session);
         }
 
-        // Regrouper les salaires par mois (clé = "YYYY-MM")
-        Map<String, List<SalarySlip>> groupedByMonth = salaries.stream()
-                .collect(Collectors.groupingBy(SalarySlip::getStartDateMonth, TreeMap::new, Collectors.toList()));
+        DateTimeFormatter ymFormatter = DateTimeFormatter.ofPattern("MMMM yyyy", Locale.FRENCH);
+        DateTimeFormatter displayFormatter = DateTimeFormatter.ofPattern("MMMM yyyy", Locale.FRENCH);
 
-        // Map de mois -> map de totaux
-        Map<String, Map<String, Double>> monthlyTotals = new TreeMap<>();
+        // 1) Regrouper les salaires par YearMonth
+        Map<YearMonth, List<SalarySlip>> groupedByYM = new TreeMap<>();
 
-        for (Map.Entry<String, List<SalarySlip>> entry : groupedByMonth.entrySet()) {
-            String month = entry.getKey();
+        for (SalarySlip slip : salaries) {
+            String rawMonth = slip.getStartDateMonth(); // ex: "novembre"
+            if (rawMonth == null || rawMonth.isBlank()) {
+                continue;
+            }
+            if (year == null) {
+                System.err.println("Aucune année précisée pour le parsing de: " + rawMonth);
+                continue;
+            }
+
+            String fullDate = rawMonth.trim() + " " + year;
+            try {
+                YearMonth ym = YearMonth.parse(fullDate, ymFormatter);
+                groupedByYM.computeIfAbsent(ym, k -> new ArrayList<>()).add(slip);
+            } catch (DateTimeParseException e) {
+                System.err.println("Erreur de parsing pour: '" + fullDate + "'");
+                e.printStackTrace();
+            }
+        }
+
+        // 2) Initialiser monthlyTotals avec TOUS les mois de l'année, valeurs à zéro
+        LinkedHashMap<String, Map<String, Double>> monthlyTotals = new LinkedHashMap<>();
+
+        YearMonth startMonth = YearMonth.of(year, 1);
+        for (int m = 0; m < 12; m++) {
+            YearMonth current = startMonth.plusMonths(m);
+            String monthLabel = current.format(displayFormatter);
+            monthLabel = monthLabel.substring(0, 1).toUpperCase() + monthLabel.substring(1);
+
+            Map<String, Double> zeroTotals = new HashMap<>();
+            zeroTotals.put("net", 0.0);
+            zeroTotals.put("brut", 0.0);
+            zeroTotals.put("deduction", 0.0);
+
+            monthlyTotals.put(monthLabel, zeroTotals);
+        }
+
+        // 3) Remplir monthlyTotals avec les vraies données si elles existent
+        for (Map.Entry<YearMonth, List<SalarySlip>> entry : groupedByYM.entrySet()) {
+            YearMonth ym = entry.getKey();
             List<SalarySlip> slips = entry.getValue();
 
             double totalNet = slips.stream().mapToDouble(s -> s.getNet_pay() != null ? s.getNet_pay() : 0).sum();
             double totalBrut = slips.stream().mapToDouble(s -> s.getGross_pay() != null ? s.getGross_pay() : 0).sum();
-            // double totalEarning =
-            // slips.stream().mapToDouble(SalarySlip::getEarningTotal).sum();
             double totalDeduction = slips.stream()
-                    .mapToDouble(slip -> slip.getTotal_deduction() != null ? slip.getTotal_deduction() : 0.0)
+                    .mapToDouble(s -> s.getTotal_deduction() != null ? s.getTotal_deduction() : 0)
                     .sum();
+
+            String monthLabel = ym.format(displayFormatter);
+            monthLabel = monthLabel.substring(0, 1).toUpperCase() + monthLabel.substring(1);
 
             Map<String, Double> totals = new HashMap<>();
             totals.put("net", totalNet);
             totals.put("brut", totalBrut);
-            // totals.put("earning", totalEarning);
             totals.put("deduction", totalDeduction);
 
-            monthlyTotals.put(month, totals);
+            // Remplacer les zéros par les vraies valeurs
+            monthlyTotals.put(monthLabel, totals);
         }
 
-        double totalBrutAll = 0.0;
-        double totalNetAll = 0.0;
-        double totalEarningAll = 0.0;
-        double totalDeductionAll = 0.0;
-
-        for (Map<String, Double> totals : monthlyTotals.values()) {
-            totalBrutAll += totals.getOrDefault("brut", 0.0);
-            totalNetAll += totals.getOrDefault("net", 0.0);
-            totalEarningAll += totals.getOrDefault("earning", 0.0);
-            totalDeductionAll += totals.getOrDefault("deduction", 0.0);
-        }
+        // Totaux globaux
+        double totalBrutAll = monthlyTotals.values().stream().mapToDouble(m -> m.getOrDefault("brut", 0.0)).sum();
+        double totalNetAll = monthlyTotals.values().stream().mapToDouble(m -> m.getOrDefault("net", 0.0)).sum();
+        double totalDeductionAll = monthlyTotals.values().stream().mapToDouble(m -> m.getOrDefault("deduction", 0.0))
+                .sum();
 
         String username = (String) session.getAttribute("username");
 
         model.addAttribute("totalBrutAll", totalBrutAll);
         model.addAttribute("totalNetAll", totalNetAll);
-        model.addAttribute("totalEarningAll", totalEarningAll);
         model.addAttribute("totalDeductionAll", totalDeductionAll);
         model.addAttribute("username", username);
         model.addAttribute("monthlyTotals", monthlyTotals);
@@ -541,6 +603,111 @@ public class SalaryController {
             }
         }
         return sums;
+    }
+
+    @PostMapping("/deleteAllEmployees")
+    public ResponseEntity<String> deleteAllEmployees(HttpSession session) {
+        try {
+            // Appelle ton service qui supprime tous les employés, en passant la session si
+            // besoin
+            salaryService.deleteAllSalarySlips(session);
+            salaryService.deleteAllAssignments(session);
+            salaryService.deleteAllEmployees(session);
+            return ResponseEntity.ok("Tous les donnes avec succès.");
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.status(500).body("Erreur lors de la suppression des employés.");
+        }
+    }
+
+    @GetMapping("/salary-add-salary")
+    public String AddSalary(Model model, HttpSession session) {
+        String sid = (String) session.getAttribute("sid");
+        if (sid == null || sid.isEmpty()) {
+            return "redirect:/login";
+        }
+
+        String username = (String) session.getAttribute("username");
+        model.addAttribute("username", username);
+        model.addAttribute("page", "salary-add-salary");
+
+        // Récupérer la liste des employés depuis le service
+        List<Employee> employees = employeeService.getAllEmployees(session);
+        List<Company> company = companyService.getAllCompanies(session);
+        List<BaseSalary> structure = baseSalaryService.getAllBaseSalaries(session);
+
+        model.addAttribute("employees", employees); // Injecter dans le modèle
+        model.addAttribute("company", company); // Injecter dans le modèle
+        model.addAttribute("structure", structure); // Injecter dans le modèle
+
+        return "layout/base";
+    }
+
+    @PostMapping("/salary-add-salary-add")
+    public String genererSalaire(
+            @RequestParam("ref") String employeRef,
+            @RequestParam("dateDebut") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateDebut,
+            @RequestParam("dateFin") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateFin,
+            @RequestParam("company") String company,
+            @RequestParam("salaryStructure") String salaryStructure,
+            @RequestParam(name = "montant", required = false) Double montant,
+            HttpSession session,
+            RedirectAttributes redirectAttributes) {
+
+        boolean success = baseSalaryService.genererSalaire(
+                employeRef,
+                dateDebut.toString(),
+                dateFin.toString(),
+                company,
+                salaryStructure,
+                montant,
+                session);
+
+        if (success) {
+            redirectAttributes.addFlashAttribute("message", "✅ Salaire généré avec succès.");
+        } else {
+            redirectAttributes.addFlashAttribute("error", "❌ Échec lors de la génération du salaire.");
+        }
+
+        return "redirect:/salary-add-salary"; // 🔁 Redirige vers le formulaire au lieu de "layout/base"
+    }
+
+    @GetMapping("/salary-update")
+    public String UpDateSalary(Model model, HttpSession session) {
+        String sid = (String) session.getAttribute("sid");
+        if (sid == null || sid.isEmpty()) {
+            return "redirect:/login";
+        }
+
+        String username = (String) session.getAttribute("username");
+        model.addAttribute("username", username);
+        model.addAttribute("page", "salary-update");
+
+        List<Component> component = componentService.getAllComponents(session);
+
+        model.addAttribute("component", component);
+
+        return "layout/base";
+    }
+
+    @PostMapping("/salary-update")
+    public String postUpdateSalary(
+            @RequestParam("component") String componentName,
+            @RequestParam("condition") String condition,
+            @RequestParam("value") double value,
+            @RequestParam("percentage") double percentage,
+            @RequestParam("operation") String action,
+            HttpSession session,
+            RedirectAttributes redirectAttributes) {
+
+        try {
+            componentService.regenererSalaire(componentName, condition, value, percentage, action, session);
+            redirectAttributes.addFlashAttribute("success", "Salaire généré avec succès.");
+        } catch (Exception e) {
+            redirectAttributes.addFlashAttribute("error", "Erreur lors de la génération du salaire.");
+        }
+
+        return "redirect:/salary-update";
     }
 
 }

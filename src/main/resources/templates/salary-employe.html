@@ -37,10 +37,10 @@
                         <td th:text="${slip.employee_name}">John Doe</td>
                         <td th:text="${slip.start_date}">2025-01-01</td>
                         <td th:text="${slip.end_date}">2025-01-31</td>
-                        <td th:text="${slip.gross_pay}">2000.00</td>
-                        <td th:text="${slip.net_pay}">1800.00</td>
-                        <td th:text="${slip.total_deduction}">0.0</td>
-                        <td th:text="${slip.gross_pay}">0.00</td>
+                        <td th:text="${#numbers.formatDecimal(slip.gross_pay, 1, 'POINT', 2, 'COMMA')}">0,00</td>
+                        <td th:text="${#numbers.formatDecimal(slip.net_pay, 1, 'POINT', 2, 'COMMA')}">0,00</td>
+                        <td th:text="${#numbers.formatDecimal(slip.total_deduction, 1, 'POINT', 2, 'COMMA')}">0,00</td>
+                        <td th:text="${#numbers.formatDecimal(slip.gross_pay, 1, 'POINT', 2, 'COMMA')}">0,00</td>
                         <td class="text-center align-middle">
                             <a href="#" class="view-details-link" th:attr="data-name=${slip.name}" title="Voir détails">
                                 <i class="fas fa-eye"></i>
@@ -51,8 +51,8 @@
                 <tfoot>
                     <tr>
                         <th colspan="4">Total</th>
-                        <th th:text="${totalGrossPay}">0.00</th>
-                        <th th:text="${totalNetPay}">0.00</th>
+                        <th th:text="${#numbers.formatDecimal(totalGrossPay, 1, 'POINT', 2,'COMMA')}">0.00</th>
+                        <th th:text="${#numbers.formatDecimal(totalNetPay, 1, 'POINT', 2,'COMMA')}">0.00</th>
                     </tr>
                 </tfoot>
             </table>

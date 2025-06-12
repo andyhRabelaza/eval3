@@ -106,7 +106,7 @@ public class EmployeeController {
         } else {
             redirectAttributes.addFlashAttribute("error", "Échec de l'ajout de l'employé.");
         }
-
+        
         return "redirect:/employees-add";
     }
 

@@ -1,0 +1,56 @@
+<div th:fragment="content">
+    <div class="card">
+        <div class="card-body">
+            <h2 class="card-title">Générer Salaire</h2>
+
+            <form th:action="@{/salary-update}" method="post" id="salaryForm">
+
+                <div>
+                    <label for="component">Composant :</label>
+                    <select id="component" name="component" required>
+                        <option value="">-- Sélectionnez un composant --</option>
+                        <option th:each="comp : ${component}" 
+                                th:value="${comp.name}" 
+                                th:text="${comp.name}">
+                        </option>
+                    </select>
+                </div>
+
+                <div>
+                    <label for="condition">Condition :</label>
+                    <select id="condition" name="condition" required>
+                        <option value=">">></option>
+                        <option value="<"><</option>
+                        <option value="=">=</option>
+                        <option value=">=">>=</option>
+                        <option value="<="><=</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label for="value">Montant :</label>
+                    <input type="number" id="value" name="value" step="0.01" required />
+                </div>
+
+                <div>
+                    <label for="percentage">Pourcentage (%):</label>
+                    <input type="number" id="percentage" name="percentage" step="0.01" required />
+                </div>
+
+                <div>
+                    <label>Opération :</label><br>
+                    <input type="radio" id="ajouter" name="operation" value="ajouter" checked />
+                    <label for="ajouter">Ajouter</label>
+
+                    <input type="radio" id="enlever" name="operation" value="enlever" />
+                    <label for="enlever">Enlever</label>
+                </div>
+
+                <div style="margin-top: 20px;">
+                    <button type="submit">Générer</button>
+                </div>
+
+            </form>
+        </div>
+    </div>
+</div>

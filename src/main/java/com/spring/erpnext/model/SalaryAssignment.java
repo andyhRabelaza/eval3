@@ -12,7 +12,6 @@ public class SalaryAssignment {
     private String company;
     private List<Component> components;
 
-    // --- Getters et Setters ---
 
     public String getName() {
         return name;

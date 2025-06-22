@@ -35,7 +35,6 @@ public class SalarySlip {
 
     private Double total_deduction;
 
-    // --- Getters & Setters ---
 
     public String getName() {
         return name;

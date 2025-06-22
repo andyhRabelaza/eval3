@@ -45,6 +45,12 @@
                             <a href="#" class="view-details-link" th:attr="data-name=${slip.name}" title="Voir détails">
                                 <i class="fas fa-eye"></i>
                             </a>
+                            <a th:href="@{/salary/delete(name=${slip.name})}"
+                                class="delete-salaire-link"
+                                title="Supprimer"
+                                onclick="return confirm('Êtes-vous sûr de vouloir supprimer ce salaire ?');">
+                                <i class="fas fa-trash-alt red-icon"></i>
+                            </a>
                         </td>
                     </tr>
                 </tbody>

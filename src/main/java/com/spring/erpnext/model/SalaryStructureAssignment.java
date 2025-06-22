@@ -10,7 +10,6 @@ public class SalaryStructureAssignment {
     private String salary_structure;
     private String assigned_date; // si tu veux gérer la date d'assignation
 
-    // --- Getters & Setters ---
 
     public String getName() {
         return name;

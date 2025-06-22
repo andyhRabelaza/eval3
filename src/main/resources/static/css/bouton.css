@@ -90,3 +90,62 @@ input[type="file"]:focus {
 .logout-btn:focus .logout-icon {
   color: #00ffbf;
 }
+
+
+.btn-update{
+  background-color: #212529;
+  color: white;
+  padding: 10px 0;
+  width: 100%;
+  border: none;
+  border-radius: 6px;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+  margin-top: 10px;
+}
+
+.btn-update:hover {
+  background-color: #000000;
+}
+
+.btn-generer{
+   background-color: #212529;
+  color: white;
+  padding: 10px 0;
+  width: 100%;
+  border: none;
+  border-radius: 6px;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+  margin-top: 10px;
+}
+
+.btn-generer:hover {
+  background-color: #000000;
+}
+
+.btn-enregistrer{
+  background-color: #212529;
+  color: white;
+  padding: 10px 0;
+  width: 100%;
+  border: none;
+  border-radius: 6px;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+  margin-top: 10px; 
+}
+
+.btn-enregistrer:hover{
+  background-color: #000000;
+}
+
+.red-icon {
+    color: red;
+}

@@ -8,20 +8,30 @@ function prepareChartData(dataList) {
   });
 
   const allMonths = [...new Set(dataList.map(d => d.mois))].sort();
-  const datasets = Object.entries(grouped).map(([comp, moisMontants]) => ({
-    label: comp,
-    data: allMonths.map(m => moisMontants[m] || 0),
-    fill: false,
-    borderWidth: 2,
-    tension: 0.3 // pour courbe lissée
-  }));
 
-  return { labels: allMonths, datasets };
+  const datasets = Object.entries(grouped).map(([comp, moisMontants], index) => {
+    return {
+      label: comp,
+      data: allMonths.map(m => moisMontants[m] || 0),
+      fill: false,
+      borderWidth: 2,
+      tension: 0.3,
+      borderColor: color,
+      backgroundColor: color
+    };
+  });
+
+  return {
+    labels: allMonths,
+    datasets: datasets
+  };
 }
+
+
 
 function renderChart(canvasId, chartData, title) {
   new Chart(document.getElementById(canvasId), {
-    type: 'line', // <-- Ici on change de 'bar' à 'line'
+    type: 'line', 
     data: {
       labels: chartData.labels,
       datasets: chartData.datasets

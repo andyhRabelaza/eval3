@@ -1,7 +1,7 @@
 <div th:fragment="content">
     <div class="card">
         <div class="card-body">
-            <h2 class="card-title">Générer Salaire</h2>
+            <h2 class="card-title">Modifier Salaire</h2>
 
             <form th:action="@{/salary-update}" method="post" id="salaryForm">
 
@@ -47,9 +47,11 @@
                 </div>
 
                 <div style="margin-top: 20px;">
-                    <button type="submit">Générer</button>
+                    <button type="submit" class="btn-update">Mettre à jour</button>
                 </div>
 
+                <div th:if="${message}" class="alert alert-success" th:text="${message}"></div>
+                <div th:if="${error}" class="alert alert-danger" th:text="${error}"></div>
             </form>
         </div>
     </div>

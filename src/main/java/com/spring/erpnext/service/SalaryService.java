@@ -6,6 +6,9 @@ import com.spring.erpnext.model.Employee;
 import com.spring.erpnext.model.SalarySlip;
 import com.spring.erpnext.model.SalaryStructureAssignment;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
@@ -28,10 +31,17 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+
 @Service
 public class SalaryService {
 
     private final RestTemplate restTemplate;
+
+    private final String BASE_URL = "http://erpnext.localhost:8000";
+
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     public SalaryService() {
         this.restTemplate = new RestTemplate();
@@ -705,4 +715,101 @@ public class SalaryService {
             this.data = data;
         }
     }
+
+    public void deleteSalaryByName(String name, HttpSession session) throws Exception {
+        String sid = (String) session.getAttribute("sid");
+
+        if (sid == null || sid.isEmpty()) {
+            throw new IllegalStateException("Session expirée ou non valide.");
+        }
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.set("Cookie", "sid=" + sid);
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        HttpEntity<String> entity = new HttpEntity<>(headers);
+
+        // 1. Récupérer le Salary Slip
+        String salarySlipUrl = BASE_URL + "/api/resource/Salary Slip/" + name;
+
+        ResponseEntity<SalarySlipResponse> slipResponse = restTemplate.exchange(
+                salarySlipUrl, HttpMethod.GET, entity, SalarySlipResponse.class);
+
+        SalarySlip slip = slipResponse.getBody() != null ? slipResponse.getBody().getData() : null;
+
+        if (slip == null) {
+            throw new RuntimeException("Impossible de récupérer le Salary Slip.");
+        }
+
+        String employee = slip.getEmployee();
+        String salaryStructure = slip.getSalary_structure();
+        String fromDate = slip.getStart_date();
+
+        System.out.println("🔎 Recherche SSA pour:");
+        System.out.println("Employee: " + employee);
+        System.out.println("Salary Structure: " + salaryStructure);
+        System.out.println("From Date: " + fromDate);
+
+        // 2. Annuler le Salary Slip
+        String cancelPayload = "{\"docstatus\": 2}";
+        HttpEntity<String> cancelEntity = new HttpEntity<>(cancelPayload, headers);
+
+        ResponseEntity<String> cancelResponse = restTemplate.exchange(
+                salarySlipUrl, HttpMethod.PUT, cancelEntity, String.class);
+
+        if (!cancelResponse.getStatusCode().is2xxSuccessful()) {
+            throw new RuntimeException("Échec de l'annulation du Salary Slip : " + cancelResponse.getBody());
+        }
+
+        // 3. Supprimer le Salary Slip
+        ResponseEntity<String> deleteResponse = restTemplate.exchange(
+                salarySlipUrl, HttpMethod.DELETE, entity, String.class);
+
+        if (!deleteResponse.getStatusCode().is2xxSuccessful()) {
+            throw new RuntimeException("Échec de la suppression du Salary Slip : " + deleteResponse.getBody());
+        }
+
+        // 4. Rechercher et supprimer le Salary Structure Assignment
+        if (employee != null && salaryStructure != null && fromDate != null) {
+            String filters = "[[\"employee\", \"=\", \"" + employee + "\"]," +
+                    "[\"salary_structure\", \"=\", \"" + salaryStructure + "\"]," +
+                    "[\"from_date\", \"=\", \"" + fromDate + "\"]]";
+
+            String fields = "[\"name\"]";
+
+            String filterUrl = UriComponentsBuilder
+                    .fromHttpUrl(BASE_URL + "/api/resource/Salary Structure Assignment")
+                    .queryParam("filters", filters)
+                    .queryParam("fields", fields)
+                    .build()
+                    .toUriString();
+
+            ResponseEntity<String> assignResponse = restTemplate.exchange(
+                    filterUrl, HttpMethod.GET, entity, String.class);
+
+            JsonNode assignRoot = objectMapper.readTree(assignResponse.getBody());
+            JsonNode data = assignRoot.get("data");
+
+            if (data != null && data.isArray() && data.size() > 0) {
+                String assignName = data.get(0).get("name").asText();
+                System.out.println("✅ Salary Structure Assignment trouvé : " + assignName);
+
+                String cancelAssignUrl = BASE_URL + "/api/resource/Salary Structure Assignment/" +
+                        UriUtils.encodePathSegment(assignName, StandardCharsets.UTF_8);
+
+                HttpEntity<String> cancelAssignEntity = new HttpEntity<>("{\"docstatus\": 2}", headers);
+
+                ResponseEntity<String> cancelSSAResponse = restTemplate.exchange(
+                        cancelAssignUrl, HttpMethod.PUT, cancelAssignEntity, String.class);
+
+                if (!cancelSSAResponse.getStatusCode().is2xxSuccessful()) {
+                    throw new RuntimeException("Échec de l'annulation du SSA : " + cancelSSAResponse.getBody());
+                }
+
+                restTemplate.exchange(cancelAssignUrl, HttpMethod.DELETE, entity, String.class);
+            } else {
+                System.out.println("❌ Aucun Salary Structure Assignment trouvé.");
+            }
+        }
+    }
+
 }

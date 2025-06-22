@@ -15,10 +15,8 @@ public class Employee {
     private String gender; // 🔹 Genre
     private String company; // 🔹 Entreprise
 
-    // ✅ Nouveau champ ajouté
     private String status;
 
-    // --- Getters & Setters existants ---
 
     public String getName() {
         return name;

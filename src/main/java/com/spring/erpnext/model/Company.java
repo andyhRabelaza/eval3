@@ -3,7 +3,6 @@ package com.spring.erpnext.model;
 public class Company {
     private String name;
 
-    // Getters et setters
     public String getName() {
         return name;
     }

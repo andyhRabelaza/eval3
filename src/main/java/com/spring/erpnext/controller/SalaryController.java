@@ -22,6 +22,7 @@ import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 // import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -58,6 +59,8 @@ import com.itextpdf.text.Font;
 import com.itextpdf.text.PageSize;
 import com.itextpdf.text.Paragraph;
 import com.itextpdf.text.Phrase;
+import com.itextpdf.text.pdf.ColumnText;
+import com.itextpdf.text.pdf.PdfContentByte;
 import com.itextpdf.text.pdf.PdfPCell;
 import com.itextpdf.text.pdf.PdfPTable;
 import com.itextpdf.text.pdf.PdfWriter;
@@ -187,208 +190,157 @@ public class SalaryController {
         response.setContentType("application/pdf");
         response.setHeader("Content-Disposition", "attachment; filename=salary_" + name + ".pdf");
 
-        Document document = new Document(PageSize.A4, 50, 50, 50, 50);
-        PdfWriter.getInstance(document, response.getOutputStream());
+        Document document = new Document(PageSize.A4);
+        PdfWriter writer = PdfWriter.getInstance(document, response.getOutputStream());
         document.open();
 
-        // Couleurs
-        BaseColor darkBlue = new BaseColor(10, 51, 99);
-        BaseColor lightGray = new BaseColor(230, 230, 230);
+        BaseColor darkBlue = new BaseColor(30, 60, 110);
+        BaseColor lightGray = new BaseColor(240, 240, 240);
+        BaseColor green = new BaseColor(0, 153, 76);
+        BaseColor red = new BaseColor(204, 0, 0);
         BaseColor white = BaseColor.WHITE;
 
-        // Polices
-        Font titleFont = new Font(Font.FontFamily.HELVETICA, 20, Font.BOLD, darkBlue);
-        Font headerFont = new Font(Font.FontFamily.HELVETICA, 12, Font.BOLD, white);
-        Font labelFont = new Font(Font.FontFamily.HELVETICA, 12, Font.BOLD, darkBlue);
-        Font valueFont = new Font(Font.FontFamily.HELVETICA, 12);
+        Font titleFont = new Font(Font.FontFamily.HELVETICA, 16, Font.BOLD, darkBlue);
+        Font sectionHeaderFont = new Font(Font.FontFamily.HELVETICA, 11, Font.BOLD, BaseColor.WHITE);
+        Font labelFont = new Font(Font.FontFamily.HELVETICA, 9, Font.BOLD, darkBlue);
+        Font valueFont = new Font(Font.FontFamily.HELVETICA, 9);
 
-        // Titre centré
+        PdfContentByte cb = writer.getDirectContent();
+        ColumnText ct = new ColumnText(cb);
+        float margin = 36f;
+        Rectangle rect = document.getPageSize();
+        ct.setSimpleColumn(margin, margin, rect.getWidth() - margin, rect.getHeight() - margin);
+
         Paragraph title = new Paragraph("Bulletin de salaire", titleFont);
         title.setAlignment(Element.ALIGN_CENTER);
-        title.setSpacingAfter(25);
-        document.add(title);
+        title.setSpacingAfter(15);
+        ct.addElement(title);
 
-        // Table info générale
-        PdfPTable table = new PdfPTable(2);
-        table.setWidthPercentage(100);
-        table.setWidths(new int[] { 3, 7 });
-        table.setSpacingAfter(30);
+        // Section: Informations générales
+        PdfPTable infoTable = new PdfPTable(2);
+        infoTable.setWidthPercentage(100);
+        infoTable.setWidths(new int[] { 3, 7 });
+        infoTable.setSpacingAfter(15);
+        PdfPCell infoHeader = new PdfPCell(new Phrase("Informations générales", sectionHeaderFont));
+        infoHeader.setColspan(2);
+        infoHeader.setBackgroundColor(darkBlue);
+        infoHeader.setPadding(6);
+        infoHeader.setHorizontalAlignment(Element.ALIGN_CENTER);
+        infoTable.addCell(infoHeader);
 
-        // Cellules d'en-tête colorées (exemple)
-        PdfPCell headerCell = new PdfPCell(new Phrase("Informations générales", headerFont));
-        headerCell.setColspan(2);
-        headerCell.setHorizontalAlignment(Element.ALIGN_CENTER);
-        headerCell.setBackgroundColor(darkBlue);
-        headerCell.setPadding(10);
-        headerCell.setBorder(Rectangle.NO_BORDER);
-        headerCell.setUseVariableBorders(true);
-        table.addCell(headerCell);
-
-        // Méthode utilitaire pour créer des cellules label + valeur avec styles
-        BiFunction<String, Font, PdfPCell> createLabelCell = (text, font) -> {
+        BiFunction<String, Font, PdfPCell> labelCell = (text, font) -> {
             PdfPCell cell = new PdfPCell(new Phrase(text, font));
             cell.setBorder(Rectangle.NO_BORDER);
-            cell.setPadding(8);
-            return cell;
-        };
-        BiFunction<String, Font, PdfPCell> createValueCell = (text, font) -> {
-            PdfPCell cell = new PdfPCell(new Phrase(text, font));
-            cell.setBorder(Rectangle.NO_BORDER);
-            cell.setPadding(8);
+            cell.setPadding(5);
             return cell;
         };
 
-        // Ajout des données info générales
-        table.addCell(createLabelCell.apply("Nom du bulletin", labelFont));
-        table.addCell(createValueCell.apply(salarySlip.getName(), valueFont));
+        BiFunction<String, Font, PdfPCell> valueCell = (text, font) -> {
+            PdfPCell cell = new PdfPCell(new Phrase(text, font));
+            cell.setBorder(Rectangle.NO_BORDER);
+            cell.setPadding(5);
+            return cell;
+        };
 
-        table.addCell(createLabelCell.apply("Employé", labelFont));
-        table.addCell(createValueCell.apply(salarySlip.getEmployee_name(), valueFont));
+        infoTable.addCell(labelCell.apply("Nom du bulletin", labelFont));
+        infoTable.addCell(valueCell.apply(salarySlip.getName(), valueFont));
+        infoTable.addCell(labelCell.apply("Employé", labelFont));
+        infoTable.addCell(valueCell.apply(salarySlip.getEmployee_name(), valueFont));
+        infoTable.addCell(labelCell.apply("Période", labelFont));
+        infoTable.addCell(valueCell.apply(salarySlip.getStart_date() + " au " + salarySlip.getEnd_date(), valueFont));
+        infoTable.addCell(labelCell.apply("Date de publication", labelFont));
+        infoTable.addCell(valueCell.apply(salarySlip.getPosting_date(), valueFont));
+        infoTable.addCell(labelCell.apply("Structure salariale", labelFont));
+        infoTable.addCell(valueCell.apply(salarySlip.getSalary_structure(), valueFont));
+        infoTable.addCell(labelCell.apply("Société", labelFont));
+        infoTable.addCell(valueCell.apply(salarySlip.getCompany(), valueFont));
+        infoTable.addCell(labelCell.apply("Statut", labelFont));
+        infoTable.addCell(valueCell.apply(salarySlip.getStatus(), valueFont));
+        ct.addElement(infoTable);
 
-        table.addCell(createLabelCell.apply("Période", labelFont));
-        table.addCell(createValueCell.apply(salarySlip.getStart_date() + " au " + salarySlip.getEnd_date(), valueFont));
+        // Section: Détails de la paie
+        PdfPTable payDetails = new PdfPTable(2);
+        payDetails.setWidthPercentage(100);
+        payDetails.setWidths(new int[] { 6, 4 });
+        payDetails.setSpacingAfter(15);
+        PdfPCell payHeader = new PdfPCell(new Phrase("Détails de la paie", sectionHeaderFont));
+        payHeader.setColspan(2);
+        payHeader.setBackgroundColor(green);
+        payHeader.setPadding(6);
+        payHeader.setHorizontalAlignment(Element.ALIGN_CENTER);
+        payDetails.addCell(payHeader);
 
-        table.addCell(createLabelCell.apply("Date de publication", labelFont));
-        table.addCell(createValueCell.apply(salarySlip.getPosting_date(), valueFont));
-
-        table.addCell(createLabelCell.apply("Structure salariale", labelFont));
-        table.addCell(createValueCell.apply(salarySlip.getSalary_structure(), valueFont));
-
-        table.addCell(createLabelCell.apply("Société", labelFont));
-        table.addCell(createValueCell.apply(salarySlip.getCompany(), valueFont));
-
-        table.addCell(createLabelCell.apply("Statut", labelFont));
-        table.addCell(createValueCell.apply(salarySlip.getStatus(), valueFont));
-
-        document.add(table);
-
-        // Table détail salaire
-        PdfPTable salaryTable = new PdfPTable(2);
-        salaryTable.setWidthPercentage(50);
-        salaryTable.setWidths(new int[] { 4, 3 });
-        salaryTable.setHorizontalAlignment(Element.ALIGN_LEFT);
-
-        // En-tête table salaire
-        PdfPCell salaryHeaderCell = new PdfPCell(new Phrase("Détails de la paie", headerFont));
-        salaryHeaderCell.setColspan(2);
-        salaryHeaderCell.setHorizontalAlignment(Element.ALIGN_CENTER);
-        salaryHeaderCell.setBackgroundColor(darkBlue);
-        salaryHeaderCell.setPadding(10);
-        salaryHeaderCell.setBorder(Rectangle.NO_BORDER);
-        salaryTable.addCell(salaryHeaderCell);
-
-        // Méthode pour cellule salaire avec fond alterné
-        Function<String, PdfPCell> createSalaryLabelCell = text -> {
+        Function<String, PdfPCell> grayLabel = text -> {
             PdfPCell cell = new PdfPCell(new Phrase(text, labelFont));
             cell.setBackgroundColor(lightGray);
-            cell.setPadding(8);
+            cell.setPadding(5);
             return cell;
         };
 
-        Function<String, PdfPCell> createSalaryValueCell = text -> {
-            PdfPCell cell = new PdfPCell(new Phrase(text, valueFont));
-            cell.setPadding(8);
+        Function<Double, PdfPCell> dynamicValue = val -> {
+            BaseColor color = val == 0 ? red : BaseColor.BLACK;
+            Font f = new Font(Font.FontFamily.HELVETICA, 9, Font.NORMAL, color);
+            PdfPCell cell = new PdfPCell(new Phrase(String.format("%.2f", val), f));
+            cell.setPadding(5);
             return cell;
         };
 
-        salaryTable.addCell(createSalaryLabelCell.apply("Salaire brut (" + salarySlip.getCurrency() + ")"));
-        salaryTable.addCell(createSalaryValueCell.apply(String.format("%.2f", salarySlip.getGross_pay())));
+        payDetails.addCell(grayLabel.apply("Salaire brut (" + salarySlip.getCurrency() + ")"));
+        payDetails.addCell(dynamicValue.apply(salarySlip.getGross_pay()));
+        payDetails.addCell(grayLabel.apply("Salaire net (" + salarySlip.getCurrency() + ")"));
+        payDetails.addCell(dynamicValue.apply(salarySlip.getNet_pay()));
+        payDetails.addCell(grayLabel.apply("Jours payés"));
+        payDetails.addCell(dynamicValue.apply((double) salarySlip.getPayment_days()));
+        payDetails.addCell(grayLabel.apply("Congés sans solde"));
+        payDetails.addCell(dynamicValue.apply((double) salarySlip.getLeave_without_pay()));
+        ct.addElement(payDetails);
 
-        salaryTable.addCell(createSalaryLabelCell.apply("Salaire net (" + salarySlip.getCurrency() + ")"));
-        salaryTable.addCell(createSalaryValueCell.apply(String.format("%.2f", salarySlip.getNet_pay())));
+        // Section: Earnings
+        PdfPTable earnings = new PdfPTable(2);
+        earnings.setWidthPercentage(100);
+        earnings.setWidths(new int[] { 6, 4 });
+        earnings.setSpacingAfter(15);
+        PdfPCell earnHeader = new PdfPCell(new Phrase("Earnings", sectionHeaderFont));
+        earnHeader.setColspan(2);
+        earnHeader.setBackgroundColor(darkBlue);
+        earnHeader.setPadding(6);
+        earnHeader.setHorizontalAlignment(Element.ALIGN_CENTER);
+        earnings.addCell(earnHeader);
 
-        salaryTable.addCell(createSalaryLabelCell.apply("Jours payés"));
-        salaryTable.addCell(createSalaryValueCell.apply(String.valueOf(salarySlip.getPayment_days())));
-
-        salaryTable.addCell(createSalaryLabelCell.apply("Congés sans solde"));
-        salaryTable.addCell(createSalaryValueCell.apply(String.valueOf(salarySlip.getLeave_without_pay())));
-
-        document.add(salaryTable);
-
-        // Table des gains (earnings)
-        PdfPTable earningsTable = new PdfPTable(2);
-        earningsTable.setWidthPercentage(100);
-        earningsTable.setSpacingBefore(30);
-        earningsTable.setWidths(new int[] { 7, 3 });
-
-        // En-tête
-        PdfPCell earningsHeaderCell = new PdfPCell(new Phrase("Earnings", headerFont));
-        earningsHeaderCell.setColspan(2);
-        earningsHeaderCell.setHorizontalAlignment(Element.ALIGN_CENTER);
-        earningsHeaderCell.setBackgroundColor(darkBlue);
-        earningsHeaderCell.setPadding(10);
-        earningsHeaderCell.setBorder(Rectangle.NO_BORDER);
-        earningsTable.addCell(earningsHeaderCell);
-
-        // Colonnes
-        PdfPCell earningCompCell = new PdfPCell(new Phrase("Composant", labelFont));
-        earningCompCell.setBackgroundColor(lightGray);
-        earningCompCell.setPadding(8);
-        earningsTable.addCell(earningCompCell);
-
-        PdfPCell earningAmountCell = new PdfPCell(new Phrase("Montant (" + salarySlip.getCurrency() + ")", labelFont));
-        earningAmountCell.setBackgroundColor(lightGray);
-        earningAmountCell.setPadding(8);
-        earningsTable.addCell(earningAmountCell);
-
-        // Données
-        for (Earning earning : salarySlip.getEarnings()) {
-            PdfPCell compCell = new PdfPCell(new Phrase(earning.getSalary_component(), valueFont));
-            compCell.setPadding(8);
-            earningsTable.addCell(compCell);
-
-            PdfPCell amountCell = new PdfPCell(new Phrase(String.format("%.2f", earning.getAmount()), valueFont));
-            amountCell.setPadding(8);
-            earningsTable.addCell(amountCell);
+        earnings.addCell(grayLabel.apply("Composant"));
+        earnings.addCell(grayLabel.apply("Montant (" + salarySlip.getCurrency() + ")"));
+        for (Earning e : salarySlip.getEarnings()) {
+            earnings.addCell(valueCell.apply(e.getSalary_component(), valueFont));
+            earnings.addCell(dynamicValue.apply(e.getAmount()));
         }
+        ct.addElement(earnings);
 
-        document.add(earningsTable);
+        // Section: Deductions
+        PdfPTable deductions = new PdfPTable(2);
+        deductions.setWidthPercentage(100);
+        deductions.setWidths(new int[] { 6, 4 });
+        deductions.setSpacingAfter(15);
+        PdfPCell deducHeader = new PdfPCell(new Phrase("Deductions", sectionHeaderFont));
+        deducHeader.setColspan(2);
+        deducHeader.setBackgroundColor(new BaseColor(51, 122, 183));
+        deducHeader.setPadding(6);
+        deducHeader.setHorizontalAlignment(Element.ALIGN_CENTER);
+        deductions.addCell(deducHeader);
 
-        // Table des retenues (deductions)
-        PdfPTable deductionsTable = new PdfPTable(2);
-        deductionsTable.setWidthPercentage(100);
-        deductionsTable.setSpacingBefore(20);
-        deductionsTable.setWidths(new int[] { 7, 3 });
-
-        // En-tête
-        PdfPCell deductionsHeaderCell = new PdfPCell(new Phrase("Deductions", headerFont));
-        deductionsHeaderCell.setColspan(2);
-        deductionsHeaderCell.setHorizontalAlignment(Element.ALIGN_CENTER);
-        deductionsHeaderCell.setBackgroundColor(darkBlue);
-        deductionsHeaderCell.setPadding(10);
-        deductionsHeaderCell.setBorder(Rectangle.NO_BORDER);
-        deductionsTable.addCell(deductionsHeaderCell);
-
-        // Colonnes
-        PdfPCell dedCompCell = new PdfPCell(new Phrase("Composant", labelFont));
-        dedCompCell.setBackgroundColor(lightGray);
-        dedCompCell.setPadding(8);
-        deductionsTable.addCell(dedCompCell);
-
-        PdfPCell dedAmountCell = new PdfPCell(new Phrase("Montant (" + salarySlip.getCurrency() + ")", labelFont));
-        dedAmountCell.setBackgroundColor(lightGray);
-        dedAmountCell.setPadding(8);
-        deductionsTable.addCell(dedAmountCell);
-
-        // Données
-        for (Deduction deduction : salarySlip.getDeductions()) {
-            PdfPCell compCell = new PdfPCell(new Phrase(deduction.getSalary_component(), valueFont));
-            compCell.setPadding(8);
-            deductionsTable.addCell(compCell);
-
-            PdfPCell amountCell = new PdfPCell(new Phrase(String.format("%.2f", deduction.getAmount()), valueFont));
-            amountCell.setPadding(8);
-            deductionsTable.addCell(amountCell);
+        deductions.addCell(grayLabel.apply("Composant"));
+        deductions.addCell(grayLabel.apply("Montant (" + salarySlip.getCurrency() + ")"));
+        for (Deduction d : salarySlip.getDeductions()) {
+            deductions.addCell(valueCell.apply(d.getSalary_component(), valueFont));
+            deductions.addCell(dynamicValue.apply(d.getAmount()));
         }
+        ct.addElement(deductions);
 
-        document.add(deductionsTable);
-
-        // Pied de page
         Paragraph footer = new Paragraph("\nMerci pour votre travail au sein de " + salarySlip.getCompany(), valueFont);
         footer.setAlignment(Element.ALIGN_CENTER);
-        footer.setSpacingBefore(50);
-        document.add(footer);
+        footer.setSpacingBefore(20);
+        ct.addElement(footer);
 
+        ct.go();
         document.close();
     }
 
@@ -423,7 +375,7 @@ public class SalaryController {
         Map<YearMonth, List<SalarySlip>> groupedByYM = new TreeMap<>();
 
         for (SalarySlip slip : salaries) {
-            String rawMonth = slip.getStartDateMonth(); // ex: "novembre"
+            String rawMonth = slip.getStartDateMonth();
             if (rawMonth == null || rawMonth.isBlank()) {
                 continue;
             }
@@ -605,21 +557,6 @@ public class SalaryController {
         return sums;
     }
 
-    @PostMapping("/deleteAllEmployees")
-    public ResponseEntity<String> deleteAllEmployees(HttpSession session) {
-        try {
-            // Appelle ton service qui supprime tous les employés, en passant la session si
-            // besoin
-            salaryService.deleteAllSalarySlips(session);
-            salaryService.deleteAllAssignments(session);
-            salaryService.deleteAllEmployees(session);
-            return ResponseEntity.ok("Tous les donnes avec succès.");
-        } catch (Exception e) {
-            e.printStackTrace();
-            return ResponseEntity.status(500).body("Erreur lors de la suppression des employés.");
-        }
-    }
-
     @GetMapping("/salary-add-salary")
     public String AddSalary(Model model, HttpSession session) {
         String sid = (String) session.getAttribute("sid");
@@ -631,7 +568,6 @@ public class SalaryController {
         model.addAttribute("username", username);
         model.addAttribute("page", "salary-add-salary");
 
-        // Récupérer la liste des employés depuis le service
         List<Employee> employees = employeeService.getAllEmployees(session);
         List<Company> company = companyService.getAllCompanies(session);
         List<BaseSalary> structure = baseSalaryService.getAllBaseSalaries(session);
@@ -643,14 +579,14 @@ public class SalaryController {
         return "layout/base";
     }
 
-    @PostMapping("/salary-add-salary-add")
+    @PostMapping("/salary-add-salary")
     public String genererSalaire(
             @RequestParam("ref") String employeRef,
             @RequestParam("dateDebut") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateDebut,
             @RequestParam("dateFin") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateFin,
             @RequestParam("company") String company,
             @RequestParam("salaryStructure") String salaryStructure,
-            @RequestParam(name = "montant", required = false) Double montant,
+            @RequestParam(name = "montant", required = false, defaultValue = "0.0") Double montant,
             HttpSession session,
             RedirectAttributes redirectAttributes) {
 
@@ -702,12 +638,28 @@ public class SalaryController {
 
         try {
             componentService.regenererSalaire(componentName, condition, value, percentage, action, session);
-            redirectAttributes.addFlashAttribute("success", "Salaire généré avec succès.");
+            redirectAttributes.addFlashAttribute("message", "✅ Salaire modifié avec succès.");
         } catch (Exception e) {
-            redirectAttributes.addFlashAttribute("error", "Erreur lors de la génération du salaire.");
+            redirectAttributes.addFlashAttribute("error", "❌Erreur lors de la modification du salaire.");
         }
 
         return "redirect:/salary-update";
+    }
+
+    @GetMapping("/salary/delete")
+    public String deleteEmployee(
+            @RequestParam("name") String name,
+            HttpSession session,
+            RedirectAttributes redirectAttributes) {
+
+        try {
+            salaryService.deleteSalaryByName(name, session);
+            redirectAttributes.addFlashAttribute("successMessage", "Salaire supprimé avec succès.");
+        } catch (Exception e) {
+            redirectAttributes.addFlashAttribute("errorMessage", "Erreur lors de la suppression : " + e.getMessage());
+        }
+
+        return "redirect:/salary-employe";
     }
 
 }

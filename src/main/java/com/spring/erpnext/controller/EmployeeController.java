@@ -1,28 +1,35 @@
 package com.spring.erpnext.controller;
 
+import com.spring.erpnext.model.Company;
 import com.spring.erpnext.model.Employee;
+import com.spring.erpnext.service.CompanyService;
 import com.spring.erpnext.service.EmployeeService;
 
 import jakarta.servlet.http.HttpSession;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
+import java.time.LocalDate;
 import java.util.List;
 
 @Controller
 public class EmployeeController {
 
     private final EmployeeService employeeService;
+    private final CompanyService companyService;
 
     @Autowired
-    public EmployeeController(EmployeeService employeeService) {
+    public EmployeeController(EmployeeService employeeService, CompanyService companyService) {
         this.employeeService = employeeService;
+        this.companyService = companyService;
     }
 
     @GetMapping("/employees")
@@ -38,7 +45,6 @@ public class EmployeeController {
             return "redirect:/login";
         }
 
-        // Recherche
         if (search != null && !search.isEmpty()) {
             String lowerSearch = search.toLowerCase();
             employees = employees.stream()
@@ -48,7 +54,6 @@ public class EmployeeController {
                     .toList();
         }
 
-        // Pagination
         int pageSize = 10;
         int totalPages = (int) Math.ceil((double) employees.size() / pageSize);
         int fromIndex = (page - 1) * pageSize;
@@ -83,30 +88,49 @@ public class EmployeeController {
             return "redirect:/login";
         }
 
+        List<Company> company = companyService.getAllCompanies(session);
+
         String username = (String) session.getAttribute("username");
         model.addAttribute("username", username);
+        model.addAttribute("company", company);
         model.addAttribute("page", "employees-add");
 
-        // ✅ Nécessaire pour que th:object fonctionne
         model.addAttribute("employee", new Employee());
 
         return "layout/base";
     }
 
-    @PostMapping("/employee/add")
+    @PostMapping("/employees-add")
     public String submitEmployeeForm(
-            @ModelAttribute("employee") Employee employee,
+            @RequestParam("name") String name,
+            @RequestParam("first_name") String firstName,
+            @RequestParam(value = "middle_name", required = false) String middleName,
+            @RequestParam("last_name") String lastName,
+            @RequestParam("date_of_birth") String dateOfBirth,
+            @RequestParam("date_of_joining") String dateOfJoining,
+            @RequestParam("gender") String gender,
+            @RequestParam("company") String company,
             HttpSession session,
             RedirectAttributes redirectAttributes) {
+
+        Employee employee = new Employee();
+        employee.setName(name);
+        employee.setFirst_name(firstName);
+        employee.setMiddle_name(middleName);
+        employee.setLast_name(lastName);
+        employee.setDate_of_birth(dateOfBirth);
+        employee.setDate_of_joining(dateOfJoining);
+        employee.setGender(gender);
+        employee.setCompany(company);
 
         boolean success = employeeService.insertEmployee(employee, session);
 
         if (success) {
-            redirectAttributes.addFlashAttribute("message", "Employé ajouté avec succès.");
+            redirectAttributes.addFlashAttribute("message", "✅ Employé ajouté avec succès.");
         } else {
-            redirectAttributes.addFlashAttribute("error", "Échec de l'ajout de l'employé.");
+            redirectAttributes.addFlashAttribute("error", "❌ Échec de l'ajout de l'employé.");
         }
-        
+
         return "redirect:/employees-add";
     }
 

@@ -4,7 +4,6 @@ public class Component {
     private String name;
     private double amount;
 
-    // Getters & Setters
     public String getName() {
         return name;
     }

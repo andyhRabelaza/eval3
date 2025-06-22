@@ -1,0 +1,34 @@
+
+/* Champs du formulaire */
+form div {
+    margin-bottom: 10px;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Libellés */
+label {
+    font-weight: 200;
+    color: #444;
+}
+
+/* Inputs et selects */
+input[type="date"],
+input[type="number"],
+select {
+    padding: 8px 6px;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    font-size: 16px;
+    transition: border-color 0.3s;
+}
+
+input:focus,
+select:focus {
+    border-color: #201f1f;
+    outline: none;
+}
+
+
+
+

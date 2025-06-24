@@ -309,7 +309,11 @@ public class BaseSalaryService {
             headers.set("Expect", "");
 
             if (montant == 0.0) {
-                montant = recupererDernierSalaireBase(employeRef, headers);
+                montant = recupererDernierSalaireBaseAvantDate(employeRef, dateDebut, headers);
+                if (montant == -1.0) {
+                    System.err.println("❌ Aucun historique salarial avant " + dateDebut + " pour " + employeRef);
+                    return false;
+                }
                 if (montant == 0.0) {
                     System.err.println("❌ Salaire de base introuvable pour " + employeRef);
                     return false;
@@ -437,10 +441,48 @@ public class BaseSalaryService {
         }
     }
 
-    private double recupererDernierSalaireBase(String employeRef, HttpHeaders headers) {
+    // private double recupererDernierSalaireBase(String employeRef, HttpHeaders
+    // headers) {
+    // try {
+    // String url = BASE_URL + "/api/resource/Salary Structure Assignment?filters="
+    // + "[[\"employee\", \"=\", \"" + employeRef + "\"]]"
+    // + "&fields=[\"base\", \"from_date\"]"
+    // + "&limit_page_length=1"
+    // + "&order_by=from_date desc";
+
+    // HttpEntity<String> entity = new HttpEntity<>(headers);
+    // ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.GET,
+    // entity, String.class);
+
+    // System.out.println("Réponse JSON : " + response.getBody()); // DEBUG
+
+    // if (response.getStatusCode().is2xxSuccessful()) {
+    // JsonNode root = objectMapper.readTree(response.getBody());
+    // JsonNode data = root.get("data");
+    // if (data != null && data.isArray() && data.size() > 0) {
+    // JsonNode dernierSSA = data.get(0);
+    // System.out.println("Dernier SSA JSON: " + dernierSSA.toString()); // DEBUG
+    // return dernierSSA.has("base") ? dernierSSA.get("base").asDouble() : 0.0;
+    // } else {
+    // System.err.println("❌ 'data' est vide ou pas un tableau");
+    // }
+    // } else {
+    // System.err.println("❌ Erreur récupération dernier SSA: " +
+    // response.getBody());
+    // }
+    // } catch (Exception e) {
+    // System.err.println("❌ Exception récupération dernier SSA: " +
+    // e.getMessage());
+    // e.printStackTrace();
+    // }
+    // return 0.0;
+    // }
+
+    private double recupererDernierSalaireBaseAvantDate(String employeRef, String dateLimite, HttpHeaders headers) {
         try {
             String url = BASE_URL + "/api/resource/Salary Structure Assignment?filters="
-                    + "[[\"employee\", \"=\", \"" + employeRef + "\"]]"
+                    + "[[\"employee\", \"=\", \"" + employeRef + "\"],"
+                    + "[\"from_date\", \"<\", \"" + dateLimite + "\"]]"
                     + "&fields=[\"base\", \"from_date\"]"
                     + "&limit_page_length=1"
                     + "&order_by=from_date desc";
@@ -448,26 +490,24 @@ public class BaseSalaryService {
             HttpEntity<String> entity = new HttpEntity<>(headers);
             ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.GET, entity, String.class);
 
-            System.out.println("Réponse JSON : " + response.getBody()); // DEBUG
-
             if (response.getStatusCode().is2xxSuccessful()) {
                 JsonNode root = objectMapper.readTree(response.getBody());
                 JsonNode data = root.get("data");
                 if (data != null && data.isArray() && data.size() > 0) {
                     JsonNode dernierSSA = data.get(0);
-                    System.out.println("Dernier SSA JSON: " + dernierSSA.toString()); // DEBUG
                     return dernierSSA.has("base") ? dernierSSA.get("base").asDouble() : 0.0;
                 } else {
-                    System.err.println("❌ 'data' est vide ou pas un tableau");
+                    System.out.println("ℹ️ Aucun Salary Structure Assignment avant " + dateLimite);
+                    return -1.0; // Aucun historique avant
                 }
             } else {
-                System.err.println("❌ Erreur récupération dernier SSA: " + response.getBody());
+                System.err.println("❌ Erreur récupération SSA: " + response.getBody());
             }
         } catch (Exception e) {
-            System.err.println("❌ Exception récupération dernier SSA: " + e.getMessage());
+            System.err.println("❌ Exception récupération SSA: " + e.getMessage());
             e.printStackTrace();
         }
-        return 0.0;
+        return -1.0;
     }
 
     public List<BaseSalary> getAllBaseSalaries(HttpSession session) {
@@ -507,6 +547,64 @@ public class BaseSalaryService {
         public void setData(List<BaseSalary> data) {
             this.data = data;
         }
+    }
+
+    public Map<String, String> getSalaryStructureAndCompany(HttpSession session, String employeeId) {
+        String sid = (String) session.getAttribute("sid");
+        if (sid == null)
+            return null;
+
+        try {
+            String filtersJson = "[[\"Salary Structure Assignment\",\"employee\",\"=\",\"" + employeeId + "\"]]";
+
+            URI uri = UriComponentsBuilder
+                    .fromHttpUrl(BASE_URL + "/api/resource/Salary Structure Assignment")
+                    .queryParam("fields", "[\"salary_structure\",\"company\",\"from_date\"]")
+                    .queryParam("filters", filtersJson)
+                    .queryParam("order_by", "from_date desc")
+                    .queryParam("limit_page_length", "1")
+                    .build()
+                    .encode()
+                    .toUri();
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.set("Cookie", "sid=" + sid);
+            HttpEntity<String> entity = new HttpEntity<>(headers);
+
+            ResponseEntity<String> response = restTemplate.exchange(uri, HttpMethod.GET, entity, String.class);
+
+            if (response.getStatusCode() == HttpStatus.OK && response.getBody() != null) {
+                TypeReference<Map<String, Object>> typeRef = new TypeReference<Map<String, Object>>() {
+                };
+                Map<String, Object> result = objectMapper.readValue(response.getBody(), typeRef);
+
+                if (result.containsKey("data")) {
+                    @SuppressWarnings("unchecked")
+                    List<Map<String, Object>> assignments = (List<Map<String, Object>>) result.get("data");
+
+                    if (!assignments.isEmpty()) {
+                        Map<String, Object> assignment = assignments.get(0);
+                        String salaryStructure = assignment.get("salary_structure") != null
+                                ? assignment.get("salary_structure").toString()
+                                : null;
+                        String company = assignment.get("company") != null ? assignment.get("company").toString()
+                                : null;
+
+                        Map<String, String> infos = new HashMap<>();
+                        infos.put("salary_structure", salaryStructure);
+                        infos.put("company", company);
+
+                        System.out.println("✅ Salary Structure : " + salaryStructure + ", Company : " + company);
+                        return infos;
+                    }
+                }
+            }
+
+        } catch (Exception e) {
+            System.err.println("❌ Erreur récupération Salary Structure et Company : " + e.getMessage());
+        }
+
+        return null;
     }
 
 }

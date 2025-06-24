@@ -2,12 +2,15 @@ package com.spring.erpnext.controller;
 
 import com.spring.erpnext.model.Company;
 import com.spring.erpnext.model.Employee;
+import com.spring.erpnext.service.BaseSalaryService;
 import com.spring.erpnext.service.CompanyService;
 import com.spring.erpnext.service.EmployeeService;
+import com.spring.erpnext.service.TestService;
 
 import jakarta.servlet.http.HttpSession;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -15,21 +18,29 @@ import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import java.time.LocalDate;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 
 @Controller
 public class EmployeeController {
 
     private final EmployeeService employeeService;
     private final CompanyService companyService;
+    private final TestService testService;
+    private final BaseSalaryService baseSalaryService;
 
     @Autowired
-    public EmployeeController(EmployeeService employeeService, CompanyService companyService) {
+    public EmployeeController(EmployeeService employeeService, CompanyService companyService, TestService testService,
+            BaseSalaryService baseSalaryService) {
         this.employeeService = employeeService;
         this.companyService = companyService;
+        this.testService = testService;
+        this.baseSalaryService = baseSalaryService;
     }
 
     @GetMapping("/employees")
@@ -132,6 +143,25 @@ public class EmployeeController {
         }
 
         return "redirect:/employees-add";
+    }
+
+    // @GetMapping("/employex")
+    // public ResponseEntity<List<Employee>> getAllEmployees() {
+    // List<Employee> employees = testService.getAllEmployees();
+    // return ResponseEntity.ok(employees);
+    // }
+
+    @GetMapping("/employee/info/{employeeId}")
+    @ResponseBody
+    public Map<String, String> getSalaryStructureAndCompany(@PathVariable String employeeId, HttpSession session) {
+        Map<String, String> infos = baseSalaryService.getSalaryStructureAndCompany(session, employeeId);
+
+        if (infos != null) {
+            return infos;
+        } else {
+            // Retourne une map vide ou un message d'erreur, selon ta préférence
+            return Collections.emptyMap();
+        }
     }
 
 }

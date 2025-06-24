@@ -10,7 +10,7 @@
                         <option value="">-- Sélectionnez un Employé --</option>
                         <option th:each="emp : ${employees}" 
                                 th:value="${emp.name}" 
-                                th:text="${emp.name}">
+                                th:text="${emp.first_name} + '/' + ${emp.name}">
                         </option>
                     </select>
                 </div>

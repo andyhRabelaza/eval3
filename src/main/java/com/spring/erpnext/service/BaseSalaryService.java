@@ -607,4 +607,257 @@ public class BaseSalaryService {
         return null;
     }
 
+    public boolean regenererSalaireAvecEcraser(
+            String employeRef,
+            String dateDebut,
+            String dateFin,
+            String company,
+            String salaryStructure,
+            double montant,
+            String ecraser,
+            HttpSession session) {
+
+        String sid = (String) session.getAttribute("sid");
+        if (sid == null || sid.isEmpty()) {
+            System.err.println("❌ Session non authentifiée");
+            return false;
+        }
+
+        try {
+            if (!employeeExists(session, employeRef)) {
+                System.err.println("❌ Employé inexistant : " + employeRef);
+                return false;
+            }
+
+            if (salaryStructure == null || salaryStructure.isEmpty()) {
+                System.err.println("❌ Structure salariale non spécifiée");
+                return false;
+            }
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.set("Cookie", "sid=" + sid);
+            headers.set("Expect", "");
+
+            if (montant == 0.0) {
+                montant = recupererDernierSalaireBaseAvantDate(employeRef, dateDebut, headers);
+                if (montant == -1.0) {
+                    System.err.println("❌ Aucun historique salarial avant " + dateDebut + " pour " + employeRef);
+                    return false;
+                }
+                if (montant == 0.0) {
+                    System.err.println("❌ Salaire de base introuvable pour " + employeRef);
+                    return false;
+                }
+            }
+
+            LocalDate start = LocalDate.parse(dateDebut).withDayOfMonth(1);
+            LocalDate end = LocalDate.parse(dateFin).withDayOfMonth(1);
+
+            while (!start.isAfter(end)) {
+                LocalDate moisDebut = start.withDayOfMonth(1);
+                LocalDate moisFin = start.withDayOfMonth(start.lengthOfMonth());
+
+                if ("oui".equalsIgnoreCase(ecraser)) {
+                    // Suppression Salary Slip existant
+
+                    System.out.println("➡️ Valeur de 'ecraser' dans le service : " + ecraser);
+
+                    if (existsSalarySlip(employeRef, moisDebut, moisFin, headers)) {
+                        supprimerSalarySlip(employeRef, moisDebut, moisFin, headers);
+                        System.out.println("🗑️ Fiche de paie supprimée pour " + moisDebut);
+                    }
+
+                    // Suppression Salary Structure Assignment existant
+                    if (existsSalaryStructureAssignment(employeRef, moisDebut, headers)) {
+                        supprimerSalaryStructureAssignment(employeRef, moisDebut, moisFin, headers);
+                        System.out.println("🗑️ Salary Structure Assignment supprimé pour " + moisDebut);
+                    }
+                }
+
+                // Création Salary Structure Assignment si non existant (ou après suppression)
+                if (!existsSalaryStructureAssignment(employeRef, moisDebut, headers)) {
+                    Map<String, Object> assignmentPayload = new HashMap<>();
+                    assignmentPayload.put("employee", employeRef);
+                    assignmentPayload.put("company", company);
+                    assignmentPayload.put("from_date", moisDebut.toString());
+                    assignmentPayload.put("salary_structure", salaryStructure);
+                    assignmentPayload.put("base", montant);
+                    assignmentPayload.put("docstatus", 1);
+
+                    String assignmentJson = objectMapper.writeValueAsString(assignmentPayload);
+                    HttpEntity<String> assignmentEntity = new HttpEntity<>(assignmentJson, headers);
+
+                    ResponseEntity<String> assignmentResponse = restTemplate.postForEntity(
+                            BASE_URL + "/api/resource/Salary Structure Assignment",
+                            assignmentEntity,
+                            String.class);
+
+                    if (!assignmentResponse.getStatusCode().is2xxSuccessful()) {
+                        System.err.println("❌ Échec SSA pour " + moisDebut + ": " + assignmentResponse.getBody());
+                        return false;
+                    }
+                }
+
+                // Création Salary Slip si non existant (ou après suppression)
+                if (!existsSalarySlip(employeRef, moisDebut, moisFin, headers)) {
+                    Map<String, Object> slipPayload = new HashMap<>();
+                    slipPayload.put("employee", employeRef);
+                    slipPayload.put("start_date", moisDebut.toString());
+                    slipPayload.put("end_date", moisFin.toString());
+                    slipPayload.put("salary_structure", salaryStructure);
+                    slipPayload.put("company", company);
+                    slipPayload.put("docstatus", 1);
+
+                    String slipJson = objectMapper.writeValueAsString(slipPayload);
+                    HttpEntity<String> slipEntity = new HttpEntity<>(slipJson, headers);
+
+                    ResponseEntity<String> slipResponse = restTemplate.postForEntity(
+                            BASE_URL + "/api/resource/Salary Slip",
+                            slipEntity,
+                            String.class);
+
+                    if (!slipResponse.getStatusCode().is2xxSuccessful()) {
+                        System.err.println("❌ Échec fiche de paie pour " + moisDebut + ": " + slipResponse.getBody());
+                        return false;
+                    }
+                }
+
+                System.out.println("✅ Salaire traité pour " + employeRef + " - Mois : " + moisDebut.getMonth());
+                start = start.plusMonths(1);
+            }
+
+            return true;
+
+        } catch (Exception e) {
+            System.err.println("❌ Erreur génération salaire: " + e.getMessage());
+            e.printStackTrace();
+            return false;
+        }
+    }
+
+    private void supprimerSalaryStructureAssignment(String employeRef, LocalDate dateDebut,
+            LocalDate dateFin, HttpHeaders headers) {
+        String url = BASE_URL + "/api/resource/Salary Structure Assignment?filters="
+                + "[[\"employee\", \"=\", \"" + employeRef + "\"],"
+                + "[\"from_date\", \">=\", \"" + dateDebut.toString() + "\"],"
+                + "[\"from_date\", \"<=\", \"" + dateFin.toString() + "\"]]";
+
+        HttpEntity<String> entity = new HttpEntity<>(headers);
+        ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.GET, entity, String.class);
+
+        if (response.getStatusCode().is2xxSuccessful()) {
+            try {
+                JsonNode root = objectMapper.readTree(response.getBody());
+                JsonNode data = root.get("data");
+
+                if (data != null) {
+                    for (JsonNode item : data) {
+                        String name = item.get("name").asText();
+
+                        String cancelUrl = BASE_URL + "/api/resource/Salary Structure Assignment/" + name;
+                        Map<String, Object> cancelPayload = new HashMap<>();
+                        cancelPayload.put("docstatus", 2);
+
+                        HttpEntity<String> cancelEntity = new HttpEntity<>(
+                                objectMapper.writeValueAsString(cancelPayload), headers);
+                        restTemplate.exchange(cancelUrl, HttpMethod.PUT, cancelEntity, String.class);
+
+                        String deleteUrl = BASE_URL + "/api/resource/Salary Structure Assignment/" + name;
+                        restTemplate.exchange(deleteUrl, HttpMethod.DELETE, entity, String.class);
+
+                        System.out.println("🗑️ SSA supprimé : " + name);
+                    }
+                }
+            } catch (IOException e) {
+                System.err.println("❌ Erreur suppression SSA : " + e.getMessage());
+                e.printStackTrace();
+            }
+        }
+    }
+
+    private void supprimerSalarySlip(String employeRef, LocalDate dateDebut, LocalDate dateFin,
+            HttpHeaders headers) {
+        String url = BASE_URL + "/api/resource/Salary Slip?filters="
+                + "[[\"employee\", \"=\", \"" + employeRef + "\"],"
+                + "[\"start_date\", \">=\", \"" + dateDebut.toString() + "\"],"
+                + "[\"start_date\", \"<=\", \"" + dateFin.toString() + "\"]]";
+
+        HttpEntity<String> entity = new HttpEntity<>(headers);
+        ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.GET, entity, String.class);
+
+        if (response.getStatusCode().is2xxSuccessful()) {
+            try {
+                JsonNode root = objectMapper.readTree(response.getBody());
+                JsonNode data = root.get("data");
+
+                if (data != null) {
+                    for (JsonNode item : data) {
+                        String name = item.get("name").asText();
+
+                        String cancelUrl = BASE_URL + "/api/resource/Salary Slip/" + name;
+                        Map<String, Object> cancelPayload = new HashMap<>();
+                        cancelPayload.put("docstatus", 2);
+
+                        HttpEntity<String> cancelEntity = new HttpEntity<>(
+                                objectMapper.writeValueAsString(cancelPayload), headers);
+                        restTemplate.exchange(cancelUrl, HttpMethod.PUT, cancelEntity, String.class);
+
+                        String deleteUrl = BASE_URL + "/api/resource/Salary Slip/" + name;
+                        restTemplate.exchange(deleteUrl, HttpMethod.DELETE, entity, String.class);
+
+                        System.out.println("🗑️ Fiche de paie supprimée : " + name);
+                    }
+                }
+            } catch (IOException e) {
+                System.err.println("❌ Erreur suppression Salary Slip : " + e.getMessage());
+                e.printStackTrace();
+            }
+        }
+    }
+
+    private void creerSSA(String employeRef, String company, String salaryStructure, double montant,
+            LocalDate moisDebut, HttpHeaders headers) throws IOException {
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("employee", employeRef);
+        payload.put("company", company);
+        payload.put("from_date", moisDebut.toString());
+        payload.put("salary_structure", salaryStructure);
+        payload.put("base", montant);
+        payload.put("docstatus", 1);
+
+        HttpEntity<String> entity = new HttpEntity<>(objectMapper.writeValueAsString(payload), headers);
+        ResponseEntity<String> response = restTemplate.postForEntity(
+                BASE_URL + "/api/resource/Salary Structure Assignment", entity, String.class);
+
+        if (!response.getStatusCode().is2xxSuccessful()) {
+            System.err.println("❌ Échec création SSA : HTTP " + response.getStatusCode());
+            System.err.println("Response body : " + response.getBody());
+            throw new RuntimeException("Échec création SSA");
+        }
+        System.out.println("✅ SSA créé pour " + moisDebut);
+    }
+
+    private void creerSalarySlip(String employeRef, String company, String salaryStructure, LocalDate moisDebut,
+            LocalDate moisFin, HttpHeaders headers) throws IOException {
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("employee", employeRef);
+        payload.put("start_date", moisDebut.toString());
+        payload.put("end_date", moisFin.toString());
+        payload.put("salary_structure", salaryStructure);
+        payload.put("company", company);
+        payload.put("docstatus", 1);
+
+        HttpEntity<String> entity = new HttpEntity<>(objectMapper.writeValueAsString(payload), headers);
+        ResponseEntity<String> response = restTemplate.postForEntity(
+                BASE_URL + "/api/resource/Salary Slip", entity, String.class);
+
+        if (!response.getStatusCode().is2xxSuccessful()) {
+            System.err.println("❌ Échec création Salary Slip : HTTP " + response.getStatusCode());
+            System.err.println("Response body : " + response.getBody());
+            throw new RuntimeException("Échec création Salary Slip");
+        }
+        System.out.println("✅ Salary Slip créé pour " + moisDebut);
+    }
+
 }

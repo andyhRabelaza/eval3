@@ -1,0 +1,54 @@
+<div th:fragment="content">
+    <div class="card">
+        <div class="card-body">
+            <h2 class="card-title">Liste des employés</h2>
+
+            <form th:action="@{/employees}" method="get" class="mb-3"
+                style="display: flex; gap: 10px; align-items: center;">
+                <input type="text" name="search" th:value="${search}" placeholder="Rechercher un employé..."
+                    class="form-control" style="flex: 1;" />
+                <button type="submit" class="btn-search">Rechercher</button>
+            </form>
+
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Ref</th>
+                        <th>Nom</th>
+                        <th>Prénom</th>
+                        <th>Deuxième Prénom</th>
+                        <th>Date de Naissance</th>
+                        <th>Date d'embauche</th>
+                        <th>Genre</th>
+                        <th>Entreprise</th>
+                        <th>Status</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr th:each="employee : ${employees}">
+                        <td th:text="${employee.name}">Ref</td>
+                        <td th:text="${employee.last_name}">Nom</td>
+                        <td th:text="${employee.first_name}">Prénom</td>
+                        <td th:text="${employee.middle_name}">Deuxième prénom</td>
+                        <td th:text="${employee.date_of_birth}">Date Naissance</td>
+                        <td th:text="${employee.date_of_joining}">Date Embauche</td>
+                        <td th:text="${employee.gender}">Genre</td>
+                        <td th:text="${employee.company}">Entreprise</td>
+                        <td th:text="${employee.status}"
+                            th:classappend="${employee.status == 'Active'} ? 'status-active' : 'status-inactive'">
+                            Status
+                        </td>
+                        <td>
+                            <a th:href="@{/employees/delete/{name}(name=${employee.name})}"
+                                class="delete-salaire-link" title="Supprimer"
+                                onclick="return confirm('Êtes-vous sûr de vouloir supprimer cet employé ?');">
+                                <i class="fas fa-trash-alt red-icon"></i>
+                            </a>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>

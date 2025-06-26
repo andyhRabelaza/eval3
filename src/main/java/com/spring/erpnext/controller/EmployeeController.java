@@ -145,11 +145,11 @@ public class EmployeeController {
         return "redirect:/employees-add";
     }
 
-    // @GetMapping("/employex")
-    // public ResponseEntity<List<Employee>> getAllEmployees() {
-    // List<Employee> employees = testService.getAllEmployees();
-    // return ResponseEntity.ok(employees);
-    // }
+    @GetMapping("/employex")
+    public ResponseEntity<List<Employee>> getAllEmployees() {
+        List<Employee> employees = testService.getAllEmployees();
+        return ResponseEntity.ok(employees);
+    }
 
     @GetMapping("/employee/info/{employeeId}")
     @ResponseBody
@@ -162,6 +162,14 @@ public class EmployeeController {
             // Retourne une map vide ou un message d'erreur, selon ta préférence
             return Collections.emptyMap();
         }
+    }
+
+    @GetMapping("/employeeBD")
+    public String getEmployeesPage(Model model) {
+        List<Employee> employees = testService.getAllEmployees(); // récupère les données
+        model.addAttribute("employees", employees); // ajoute au modèle
+        model.addAttribute("page", "employeeBD"); // autre attribut si besoin
+        return "layout/base";
     }
 
 }

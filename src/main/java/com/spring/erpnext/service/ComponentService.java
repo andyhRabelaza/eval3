@@ -457,4 +457,76 @@ public class ComponentService {
         }
     }
 
+    public List<SalarySlip> rechercherSalaireEtRetourner(String condition, double montant, String componentName,
+            HttpSession session) {
+
+        List<SalarySlip> resultats = new ArrayList<>();
+
+        String sid = (String) session.getAttribute("sid");
+
+        if (sid == null || sid.isEmpty()) {
+            throw new RuntimeException("Session non authentifiée");
+        }
+
+        try {
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.set("Cookie", "sid=" + sid);
+            headers.set("Accept", "application/json");
+            HttpEntity<String> entity = new HttpEntity<>(headers);
+
+            String slipUrl = UriComponentsBuilder
+                    .fromHttpUrl(BASE_URL + "/api/resource/Salary Slip")
+                    .queryParam("limit_page_length", "1000")
+                    .queryParam("fields", "[\"*\"]")
+                    .build().toUriString();
+
+            ResponseEntity<String> slipResponse = restTemplate.exchange(slipUrl, HttpMethod.GET, entity, String.class);
+
+            if (!slipResponse.getStatusCode().is2xxSuccessful()) {
+                throw new RuntimeException("Erreur récupération Salary Slips");
+            }
+
+            ObjectMapper mapper = new ObjectMapper();
+            mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+
+            SalarySlipResponse slips = mapper.readValue(slipResponse.getBody(), SalarySlipResponse.class);
+
+            for (SalarySlip slip : slips.getData()) {
+
+                String detailUrl = UriComponentsBuilder
+                        .fromHttpUrl(BASE_URL + "/api/resource/Salary Slip/" + slip.getName())
+                        .queryParam("sid", sid)
+                        .build().toUriString();
+
+                ResponseEntity<String> detailResponse = restTemplate.exchange(detailUrl, HttpMethod.GET, entity,
+                        String.class);
+
+                if (!detailResponse.getStatusCode().is2xxSuccessful()) {
+                    continue;
+                }
+
+                SalarySlip detailedSlip = mapper.readValue(detailResponse.getBody(), SalarySlipWrapper.class).getData();
+
+                boolean hasMatchingEarning = detailedSlip.getEarnings() != null && detailedSlip.getEarnings().stream()
+                        .anyMatch(e -> verifierConditionComposantEtMontant(componentName, condition, montant,
+                                e.getSalary_component(), e.getAmount()));
+
+                boolean hasMatchingDeduction = detailedSlip.getDeductions() != null
+                        && detailedSlip.getDeductions().stream()
+                                .anyMatch(d -> verifierConditionComposantEtMontant(componentName, condition, montant,
+                                        d.getSalary_component(), d.getAmount()));
+
+                if (hasMatchingEarning || hasMatchingDeduction) {
+                    resultats.add(detailedSlip);
+                }
+            }
+
+        } catch (Exception e) {
+            throw new RuntimeException("Erreur récupération Salary Slips : " + e.getMessage());
+        }
+
+        return resultats;
+    }
+
 }

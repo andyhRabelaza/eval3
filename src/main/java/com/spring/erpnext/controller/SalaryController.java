@@ -588,16 +588,21 @@ public class SalaryController {
             @RequestParam("salaryStructure") String salaryStructure,
             @RequestParam(name = "montant", required = false, defaultValue = "0.0") Double montant,
             HttpSession session,
+            @RequestParam(name = "operation", required = false) String action,
             RedirectAttributes redirectAttributes) {
 
-        boolean success = baseSalaryService.genererSalaire(
+        boolean success = baseSalaryService.regenererSalaireAvecEcraser(
                 employeRef,
                 dateDebut.toString(),
                 dateFin.toString(),
                 company,
                 salaryStructure,
                 montant,
+                action,
                 session);
+
+                System.out.println("➡️ Valeur de 'operation' reçue : " + action);
+
 
         if (success) {
             redirectAttributes.addFlashAttribute("message", "✅ Salaire généré avec succès.");
@@ -660,6 +665,57 @@ public class SalaryController {
         }
 
         return "redirect:/salary-employe";
+    }
+
+    @GetMapping("/recherche-salaire")
+    public String RechercheSalary(Model model, HttpSession session) {
+        String sid = (String) session.getAttribute("sid");
+        if (sid == null || sid.isEmpty()) {
+            return "redirect:/login";
+        }
+
+        String username = (String) session.getAttribute("username");
+        model.addAttribute("username", username);
+        model.addAttribute("page", "recherche-salaire");
+
+        List<Component> component = componentService.getAllComponents(session);
+
+        model.addAttribute("component", component); // Injecter dans le modèle
+
+        return "layout/base";
+    }
+
+    @PostMapping("/recherche-salaire")
+    public String RecherchesSalary(
+            @RequestParam("component") String componentName,
+            @RequestParam("condition") String condition,
+            @RequestParam("value") double value,
+            Model model,
+            HttpSession session) {
+
+        try {
+            List<SalarySlip> resultat = componentService.rechercherSalaireEtRetourner(
+                    condition, value, componentName, session);
+
+            model.addAttribute("resultat", resultat);
+            model.addAttribute("message", "✅ Salaire récupéré avec succès.");
+        } catch (Exception e) {
+            model.addAttribute("error", "❌Erreur lors de la récupération du salaire.");
+        }
+
+        String sid = (String) session.getAttribute("sid");
+        if (sid == null || sid.isEmpty()) {
+            return "redirect:/login";
+        }
+
+        String username = (String) session.getAttribute("username");
+        model.addAttribute("username", username);
+        model.addAttribute("page", "recherche-salaire");
+
+        List<Component> component = componentService.getAllComponents(session);
+        model.addAttribute("component", component);
+
+        return "layout/base";
     }
 
 }

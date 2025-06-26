@@ -1,0 +1,7 @@
+partie 1 : generer salaire:
+case coche ecraser salaire 
+case coche moyenne salaire de base 
+
+page 1 
+
+element salaire , valeur montant 
